@@ -1,0 +1,2 @@
+django-rest-knox==4.2.0
+Django==4.2.23
