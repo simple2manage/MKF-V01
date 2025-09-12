@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .views import *
-app_name = 'crops'
+
 
 urlpatterns = [
     path('nudges-cost/', NudgesView.as_view(), name='nudge-cost'),
