@@ -85,9 +85,11 @@ class Command(BaseCommand):
             if not row or not row.action:
                 self.stdout.write(self.style.ERROR("No action found for today!"))
                 return
+            input_text = f"Hi, I am from Simplify Agri: {row.action}"
+            self.stdout.write(f"Composed message: {input_text}")
 
-            input_text = row.action
-            self.stdout.write(f"Today's action: {input_text}")
+            # input_text = row.action
+            # self.stdout.write(f"Today's action: {input_text}")
 
             # Translate and generate TTS
             self.stdout.write("\n[1] Translating text...")
