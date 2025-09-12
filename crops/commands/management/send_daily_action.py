@@ -9,7 +9,7 @@ from sarvamai import SarvamAI
 # ---------------- Configuration ----------------
 SARVAM_API_KEY       = "sk_y1xdysnp_6uaVU3nUlJmR9Vy6l3YjwOtB"
 PHONE_NUMBER_ID      = "758493914016711"  # Your WABA Phone Number ID
-WHATSAPP_TOKEN       = "EAATEOp0sFpABPQ8ZBPKJsgNvnqqJZBEiQvNTflS2eUy4RWOR1zz71ftNAVY4dltGy8HXkhZB8Pc9MFBGksNlXjNeNsuv1WXrZBKd8yzzx9T0AiVBuj3QZAXKo39n3y0CP4ZAlNwn6kfeBkndukKAvoW2ePzKbnqXhBOHtqYpcUo2iw4xIZARtGZB6pQ61EfgDq8yV6rnrtZAbaqOIiKmW533PKHz6KWqwyfV6eXHeugMqxWjZBywZDZD"
+WHATSAPP_TOKEN       = "EAATEOp0sFpABPT0Hpn2o5EBFBHPFjByERZBorkE7ZCtRpZBbcu9UnEMMZC17G4SWsn9GofyohJWK1XcIOzrSZB3A0LinO7z1q4yorudSSQ5ZAZCeuqSNz9UZBb1NrVq6QH0dddGcHZCTSSSsGEagCMmIaOKZAfxesf5VYSgIahTf54PFV2tcsDOtlWZBEA3uesdpTih68bvREU4RWR66yXI4qhbrmqHZCxUzCMFHm87Pn11IyZBL7fgZDZD"
 RECIPIENT            = "919947942405"  # Target recipient (without '+')
 TARGET_LANG          = "ml-IN"          # Malayalam
 TTS_SPEAKER          = "manisha"
