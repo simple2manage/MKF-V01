@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'leaflet',
     'django.contrib.gis',
     'rest_framework',
+    'nudges'
    
 ]
 
