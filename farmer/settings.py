@@ -33,7 +33,7 @@ SECRET_KEY = 'django-insecure-2$(a)512(_wm5h365w84z_(nl8gm(ny+&n(c97-)@ct0kmhk%m
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -52,7 +52,8 @@ INSTALLED_APPS = [
     'leaflet',
     'django.contrib.gis',
     'rest_framework',
-    'nudges'
+    'nudges',
+    "whatsapp_bot",
    
 ]
 
@@ -171,3 +172,25 @@ REST_KNOX = {
     'TOKEN_TTL': timedelta(days=30)
 }
 OTP_API_KEY='3c91c4d0-9b5f-11ef-8b17-0200cd936042'
+
+
+
+
+from decouple import config
+
+WHATSAPP_ACCESS_TOKEN = config('WHATSAPP_ACCESS_TOKEN')
+PHONE_NUMBER_ID = config('PHONE_NUMBER_ID')
+VERIFY_TOKEN = config('WHATSAPP_VERIFY_TOKEN')
+META_APP_SECRET = config('META_APP_SECRET', default="")
+SARVAM_API_KEY = config('SARVAM_API_KEY', default="")
+SARVAM_VOICE = config('SARVAM_VOICE', default="ajit")
+SARVAM_FORMAT = config('SARVAM_FORMAT', default="mp3")
+REPLY_WITH_VOICE = config('REPLY_WITH_VOICE', default="false").lower() == "true"
+OPENROUTER_MODEL = config('OPENROUTER_MODEL')
+OPENROUTER_API_KEY = config('OPENROUTER_API_KEY')
+OPENROUTER_API_URL = config('OPENROUTER_API_URL')
+RAG_DATA_FILE = config('RAG_DATA_FILE')
+FAISS_INDEX_DIR = config('FAISS_INDEX_DIR')
+INDEX_FILE = config('INDEX_FILE')
+META_FILE = config('META_FILE')
+

@@ -26,7 +26,8 @@ urlpatterns = [
     path('crops/', include('crops.urls')),
     path('farmzone/', include('farmzone.urls')),
     path('nudges/', include('nudges.urls')),
-]
+
+    path('whatsapp/', include('whatsapp_bot.urls')),]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
