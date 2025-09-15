@@ -25,6 +25,8 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('crops/', include('crops.urls')),
     path('farmzone/', include('farmzone.urls')),
+    path('nudges/', include('nudges.urls')),
+
     path('whatsapp/', include('whatsapp_bot.urls')),]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
