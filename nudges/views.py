@@ -152,7 +152,7 @@ class NudgesView(APIView):
 #
 class NudgesViewSupervisor(APIView):
     permission_classes = [IsAuthenticated]
-
+    
     def calculate_summary(self, budgets):
         total_labour_cost = Decimal(0)
         total_machine_cost = Decimal(0)
@@ -161,6 +161,7 @@ class NudgesViewSupervisor(APIView):
 
         for budget in budgets:
 
+            # ✅ Labour cost
             try:
                 labour = budget.labour_estimation or {}
                 male = Decimal(labour.get('male_labour_cost', 0)) * int(labour.get('male_labour_count', 0))
@@ -169,24 +170,27 @@ class NudgesViewSupervisor(APIView):
             except Exception:
                 pass
 
-            # ✅ Machine cost
+            # ✅ Machine cost (loop through list)
             try:
-                machine = budget.machine_estimation or {}
-                mc = Decimal(machine.get('machine_count', 0))
-                hrs = Decimal(machine.get('working_hours', 0))
-                rate = Decimal(machine.get('rate_per_hour', 0))
-                total_machine_cost += mc * rate * hrs
+                machine_data = budget.machine_estimation or {}
+                for m in machine_data.get("machines", []):
+                    mc = Decimal(m.get("machine_count", 0))
+                    hrs = Decimal(m.get("working_hours", 0))
+                    rate = Decimal(m.get("rate_per_hour", 0))
+                    total_machine_cost += mc * hrs * rate
             except Exception:
                 pass
 
-            # ✅ Input cost
+            # ✅ Input cost (loop through list)
             try:
                 input_data = budget.input_estimation or {}
-                qty = Decimal(input_data.get('input_quantity', 0))
-                cost = Decimal(input_data.get('input_cost', 0))
-                total_input_cost += qty * cost
+                for inp in input_data.get("inputs", []):
+                    qty = Decimal(inp.get("quantity", 0))
+                    cost = Decimal(inp.get("cost_per_unit", 0))
+                    total_input_cost += qty * cost
             except Exception:
                 pass
+
 
             # ✅ Miscellaneous
             try:
@@ -203,6 +207,58 @@ class NudgesViewSupervisor(APIView):
             "total_miscellaneous": str(total_miscellaneous),
             "total_budget_cost": str(total)
         }
+
+
+    # def calculate_summary(self, budgets):
+    #     total_labour_cost = Decimal(0)
+    #     total_machine_cost = Decimal(0)
+    #     total_input_cost = Decimal(0)
+    #     total_miscellaneous = Decimal(0)
+
+    #     for budget in budgets:
+
+    #         try:
+    #             labour = budget.labour_estimation or {}
+    #             male = Decimal(labour.get('male_labour_cost', 0)) * int(labour.get('male_labour_count', 0))
+    #             female = Decimal(labour.get('female_labour_cost', 0)) * int(labour.get('female_labour_count', 0))
+    #             total_labour_cost += male + female
+    #         except Exception:
+    #             pass
+
+    #         # ✅ Machine cost
+    #         try:
+    #             machine = budget.machine_estimation or {}
+    #             mc = Decimal(machine.get('machine_count', 0))
+    #             hrs = Decimal(machine.get('working_hours', 0))
+    #             rate = Decimal(machine.get('rate_per_hour', 0))
+    #             total_machine_cost += mc * rate * hrs
+    #         except Exception:
+    #             pass
+
+    #         # ✅ Input cost
+    #         try:
+    #             input_data = budget.input_estimation or {}
+    #             qty = Decimal(input_data.get('input_quantity', 0))
+    #             cost = Decimal(input_data.get('input_cost', 0))
+    #             total_input_cost += qty * cost
+    #         except Exception:
+    #             pass
+
+    #         # ✅ Miscellaneous
+    #         try:
+    #             total_miscellaneous += Decimal(budget.miscellaneous or 0)
+    #         except Exception:
+    #             pass
+
+    #     total = total_labour_cost + total_machine_cost + total_input_cost + total_miscellaneous
+
+    #     return {
+    #         "total_labour_cost": str(total_labour_cost),
+    #         "total_machine_cost": str(total_machine_cost),
+    #         "total_input_cost": str(total_input_cost),
+    #         "total_miscellaneous": str(total_miscellaneous),
+    #         "total_budget_cost": str(total)
+    #     }
 
     def get(self, request, *args, **kwargs):
         try:
