@@ -15,6 +15,7 @@ from datetime import timedelta
 import dotenv
 dotenv.load_dotenv()
 import os
+from decouple import config
 
 GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH")
 
@@ -54,6 +55,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'nudges',
     "whatsapp_bot",
+    'masterdata'
    
 ]
 
@@ -173,10 +175,6 @@ REST_KNOX = {
 }
 OTP_API_KEY='3c91c4d0-9b5f-11ef-8b17-0200cd936042'
 
-
-
-
-from decouple import config
 
 WHATSAPP_ACCESS_TOKEN = config('WHATSAPP_ACCESS_TOKEN')
 PHONE_NUMBER_ID = config('PHONE_NUMBER_ID')

@@ -66,7 +66,7 @@ class NudgesView(APIView):
 
         data['user'] = request.user.id  # Reassign user for patch as well
 
-        serializer = NudgesSerializer(budgeting, data=data, partial=True)
+        serializer = NudgesSerializer(budgeting, data=data, partial=True, context={'request': request}  )
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
