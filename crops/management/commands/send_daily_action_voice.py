@@ -6,11 +6,11 @@ from django.core.management.base import BaseCommand
 from crops.models import CropPlanRow
 from sarvamai import SarvamAI
 
-
+import os
 # Configuration
 SARVAM_API_KEY = "sk_y1xdysnp_6uaVU3nUlJmR9Vy6l3YjwOtB"
 PHONE_NUMBER_ID = "758493914016711"
-WHATSAPP_TOKEN = "EAATEOp0sFpABPcxnW8GCxcUtxtYj3UV9coXhqPzYv7bmosyPDonWY1bltgM9NS3kCYDzppYZC7NPpw1SLiJZBM7reUjuLIsiI61fzZBeTMTKq00sDElqpfyUzvrxoaJc5eJOSQndATlO2QlkzB2eqB2axtpf1fRpebctiIK0If7KYnnaWw2VmDKtmhcZCSKZBQUnQyMMfKdbEOYZCB1hlNUY6dKvWQRseonnvZAbQoOQJsO7gZDZD"
+WHATSAPP_TOKEN =os.getenv('WHATSAPP_ACCESS_TOKEN')
 TARGET_LANG = "ml-IN"
 TTS_SPEAKER = "anushka"
 OUTPUT_FILE_TEMPLATE = "voice_{user_id}.mp3"

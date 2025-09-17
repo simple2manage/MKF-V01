@@ -26,6 +26,7 @@ urlpatterns = [
     path('crops/', include('crops.urls')),
     path('farmzone/', include('farmzone.urls')),
     path('nudges/', include('nudges.urls')),
+    path('masterdata/', include('masterdata.urls')),
 
     path('whatsapp/', include('whatsapp_bot.urls')),]
 if settings.DEBUG:
