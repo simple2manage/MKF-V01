@@ -41,7 +41,7 @@ class InputSerializer(serializers.ModelSerializer):
 class InputMasterSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     username = serializers.ReadOnlyField(source='user.username')
-    name = serializers.PrimaryKeyRelatedField(queryset=Input.objects.all())
+    name = serializers.StringRelatedField(read_only=True)
     name_id = serializers.PrimaryKeyRelatedField(
         queryset=Input.objects.all(), source='name', write_only=True
     )
