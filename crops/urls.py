@@ -11,6 +11,6 @@ urlpatterns = [
     path('cropplan-row-create/',CropPlanRowListCreateView.as_view(),name='crop-plan-row-create'),
     path('cropplan-row-update/',CropPlanRowFlexibleUpdateView.as_view(),name='crop-plan-row-update'),
     path('user-crop-plan/<int:pk>/', UserCropPlanDeleteAPIView.as_view(), name='cropplan-delete'),
-    path('send-crop-action/', SendCropPlanActionView.as_view(), name='send-crop-action')
+    path('crop-plan-row/<int:id>/mark-read/', MarkCropPlanRowAsReadAPIView.as_view(), name='mark-crop-plan-row-read'),
 
 ]

@@ -49,6 +49,7 @@ class UserCropPlanSerializer(serializers.ModelSerializer):
 #         except ValueError:
 #             return None
 class CropPlanRowSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)  # Add this line
     user = serializers.SerializerMethodField()
     zone = serializers.SerializerMethodField()
     crop = serializers.SerializerMethodField()
@@ -57,7 +58,7 @@ class CropPlanRowSerializer(serializers.ModelSerializer):
     class Meta:
         model = CropPlanRow
         fields = (
-            'row_number', 'user_crop_plan', 'date', 'day', 'stage',
+            'id','row_number', 'user_crop_plan', 'date', 'day', 'stage',
             'action', 'created', 'updated', 'user', 'zone', 'crop'
         )
 
