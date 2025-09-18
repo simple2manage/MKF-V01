@@ -197,7 +197,7 @@ class Command(BaseCommand):
             action_text_ml = translate_to_malayalam(action_text)
 
             # Final WhatsApp message
-            input_text = f"ഹായ്, ഞാൻ നിങ്ങളുടെ സുഹൃത്ത്. {action_text_ml}"
+            input_text = f"ഹായ്, ഞാന്‍ മൈ ക്രിഷി ഫ്രണ്ട്. {action_text_ml}"
 
             try:
                 text_msg_id = whatsapp_send_text(recipient, input_text)
