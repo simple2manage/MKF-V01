@@ -93,7 +93,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"Skipping user {user} - No action specified."))
                 continue
 
-            input_text = f"Hi, I am your friend. {action_text}"
+            input_text = f"ഹായ്, ഞാന്‍ മൈ ക്രിഷി ഫ്രണ്ട് {action_text}"
 
             try:
                 translated_text = translate_text(input_text)
