@@ -20,6 +20,7 @@ class UserCropPlanSerializer(serializers.ModelSerializer):
         fields = ('id', 'user', 'crop', 'crop_details', 'zone', 'crop_plan', 'start_date')
 
 class CropPlanRowSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)  # Add this line
     user = serializers.SerializerMethodField()
     zone = serializers.SerializerMethodField()
     crop = serializers.SerializerMethodField()
@@ -29,8 +30,9 @@ class CropPlanRowSerializer(serializers.ModelSerializer):
     class Meta:
         model = CropPlanRow
         fields = (
-            'row_number', 'user_crop_plan', 'date', 'day', 'stage',
-            'action', 'created', 'updated', 'user', 'zone', 'crop', 'icon_url'
+            'id','row_number', 'user_crop_plan', 'date', 'day', 'stage',
+            'action', 'created', 'updated', 'user', 'zone', 'crop',
+             'icon_url'
         )
 
     def get_user(self, obj):

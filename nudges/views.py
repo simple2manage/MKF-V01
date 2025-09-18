@@ -30,11 +30,37 @@ class NudgesView(APIView):
         except (IndexError, ValueError):
             return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
 
-        serializer = NudgesSerializer(data=data)
+        serializer = NudgesSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # def post(self, request):
+    #     data = request.data.copy()
+    #     row_number = data.get('row_number')
+    #     zone_id = data.get('zone')
+    #     crop_id = data.get('crop')
+    #
+    #     if not (row_number and zone_id and crop_id):
+    #         return Response({'error': 'row_number, zone, and crop are required'}, status=400)
+    #
+    #     try:
+    #         row_index = int(row_number) - 1
+    #         crop_plan_rows = CropPlanRow.objects.filter(
+    #             user_crop_plan__zone_id=zone_id,
+    #             user_crop_plan__crop_id=crop_id
+    #         ).order_by('id')
+    #         crop_plan_row = crop_plan_rows[row_index]
+    #         data['crop_plan_row'] = crop_plan_row.id
+    #     except (IndexError, ValueError):
+    #         return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
+    #
+    #     serializer = NudgesSerializer(data=data)
+    #     if serializer.is_valid():
+    #         serializer.save(user=request.user)
+    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request):
         data = request.data.copy()
@@ -47,6 +73,23 @@ class NudgesView(APIView):
             budgeting = Nudges.objects.get(id=budgeting_id, user=request.user)
         except Nudges.DoesNotExist:
             return Response({'error': 'Budgeting object not found or not owned by the user'}, status=404)
+
+        # If all estimations in instance are empty, allow setting any of them
+        estimations_exist = any([
+            bool(budgeting.labour_estimation),
+            bool(budgeting.machine_estimation),
+            bool(budgeting.input_estimation),
+            budgeting.miscellaneous != 0
+        ])
+
+        # The first estimation to be added can be any of the fields
+        updating_fields = ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']
+        incoming_estimations = {k: data.get(k) for k in updating_fields if data.get(k) is not None}
+
+        if not estimations_exist and not incoming_estimations:
+            return Response({
+                'error': 'At least one estimation (labour, machine, input, or miscellaneous) must be provided first.'
+            }, status=400)
 
         row_number = data.get('row_number')
         zone_id = data.get('zone')
@@ -64,13 +107,49 @@ class NudgesView(APIView):
             except (IndexError, ValueError):
                 return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
 
-        data['user'] = request.user.id  # Reassign user for patch as well
+        data['user'] = request.user.id  # Reassign user
 
-        serializer = NudgesSerializer(budgeting, data=data, partial=True, context={'request': request}  )
+        serializer = NudgesSerializer(budgeting, data=data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # def patch(self, request):
+    #     data = request.data.copy()
+    #     budgeting_id = data.get('id')
+    #
+    #     if not budgeting_id:
+    #         return Response({'error': 'ID is required for PATCH'}, status=400)
+    #
+    #     try:
+    #         budgeting = Nudges.objects.get(id=budgeting_id, user=request.user)
+    #     except Nudges.DoesNotExist:
+    #         return Response({'error': 'Budgeting object not found or not owned by the user'}, status=404)
+    #
+    #     row_number = data.get('row_number')
+    #     zone_id = data.get('zone')
+    #     crop_id = data.get('crop')
+    #
+    #     if row_number and zone_id and crop_id:
+    #         try:
+    #             row_index = int(row_number) - 1
+    #             crop_plan_rows = CropPlanRow.objects.filter(
+    #                 user_crop_plan__zone_id=zone_id,
+    #                 user_crop_plan__crop_id=crop_id
+    #             ).order_by('id')
+    #             crop_plan_row = crop_plan_rows[row_index]
+    #             data['crop_plan_row'] = crop_plan_row.id
+    #         except (IndexError, ValueError):
+    #             return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
+    #
+    #     data['user'] = request.user.id  # Reassign user for patch as well
+    #
+    #     serializer = NudgesSerializer(budgeting, data=data, partial=True, context={'request': request}  )
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request):
         budgets =Nudges.objects.filter(user=request.user)

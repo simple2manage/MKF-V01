@@ -46,7 +46,7 @@ class CropAdmin(admin.ModelAdmin):
 class CropPlanRowInline(admin.TabularInline):
     model = CropPlanRow
     extra = 1  # Number of empty rows for adding new
-    fields = ('date', 'day', 'stage', 'action', 'created', 'updated')
+    fields = ('date', 'day', 'stage', 'action', 'created', 'updated','read')
     readonly_fields = ('created', 'updated')
 
 @admin.register(UserCropPlan)

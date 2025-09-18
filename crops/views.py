@@ -269,115 +269,21 @@ class CropPlanRowFlexibleUpdateView(APIView):
 
 
 
-# crops/views.py
-import os
-import requests
-import base64
-from datetime import date
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from crops.models import CropPlanRow
-from sarvamai import SarvamAI
+class MarkCropPlanRowAsReadAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-# ---------------- Configuration ----------------
-SARVAM_API_KEY = "sk_y1xdysnp_6uaVU3nUlJmR9Vy6l3YjwOtB"
-PHONE_NUMBER_ID = "758493914016711"
-WHATSAPP_TOKEN = "EAATEOp0sFpABPQ8ZBPKJsgNvnqqJZBEiQvNTflS2eUy4RWOR1zz71ftNAVY4dltGy8HXkhZB8Pc9MFBGksNlXjNeNsuv1WXrZBKd8yzzx9T0AiVBuj3QZAXKo39n3y0CP4ZAlNwn6kfeBkndukKAvoW2ePzKbnqXhBOHtqYpcUo2iw4xIZARtGZB6pQ61EfgDq8yV6rnrtZAbaqOIiKmW533PKHz6KWqwyfV6eXHeugMqxWjZBywZDZD"
-TTS_SPEAKER = "manisha"
-OUTPUT_FILE = "voice.mp3"
-TARGET_LANG = "ml-IN"
+    def post(self, request, *args, **kwargs):
+        row_id = kwargs.get('id')
 
-# Initialize SarvamAI Client
-sarvamclient = SarvamAI(api_subscription_key=SARVAM_API_KEY)
-
-
-# -------- Helper Functions --------
-def translate_text(input_text):
-    resp = sarvamclient.text.translate(
-        input=input_text,
-        source_language_code="auto",
-        target_language_code=TARGET_LANG
-    )
-    return resp.translated_text
-
-
-def text_to_speech(text, output_file):
-    tts_resp = sarvamclient.text_to_speech.convert(
-        text=text,
-        target_language_code=TARGET_LANG,
-        speaker=TTS_SPEAKER,
-        output_audio_codec="mp3"
-    )
-    audio_b64 = tts_resp.audios[0]
-    audio_bytes = base64.b64decode(audio_b64)
-    with open(output_file, "wb") as f:
-        f.write(audio_bytes)
-
-
-def whatsapp_upload_media(file_path):
-    url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/media"
-    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
-    files = {'file': (file_path, open(file_path, 'rb'), 'audio/mpeg')}
-    data = {"messaging_product": "whatsapp"}
-    response = requests.post(url, headers=headers, files=files, data=data)
-    response.raise_for_status()
-    return response.json().get("id")
-
-
-def whatsapp_send_audio(recipient, media_id):
-    url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": recipient,
-        "type": "audio",
-        "audio": {"id": media_id}
-    }
-    response = requests.post(url, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["messages"][0]["id"]
-
-
-# ---------------- Class-Based View ----------------
-class SendCropPlanActionView(APIView):
-    """
-    API view to send today's CropPlanRow action as WhatsApp audio.
-    """
-
-    def post(self, request):
-        recipient = request.data.get("recipient")
-        if not recipient:
-            return Response({"error": "Recipient is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not row_id:
+            return Response({'error': 'CropPlanRow ID is required in URL'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            today = date.today()
-            row = CropPlanRow.objects.filter(date=today).first()
-            if not row or not row.action:
-                return Response({"error": "No action found for today"}, status=status.HTTP_404_NOT_FOUND)
+            crop_plan_row = CropPlanRow.objects.get(id=row_id, user_crop_plan__user=request.user)
+        except CropPlanRow.DoesNotExist:
+            return Response({'error': 'CropPlanRow not found or not accessible'}, status=status.HTTP_404_NOT_FOUND)
 
-            input_text = row.action
+        crop_plan_row.read = True
+        crop_plan_row.save()
 
-            # 1️⃣ Translate
-            translated_text = translate_text(input_text)
-
-            # 2️⃣ Generate TTS
-            text_to_speech(translated_text, OUTPUT_FILE)
-
-            # 3️⃣ Upload Media
-            media_id = whatsapp_upload_media(OUTPUT_FILE)
-
-            # 4️⃣ Send Audio via WhatsApp
-            message_id = whatsapp_send_audio(recipient, media_id)
-
-            return Response({
-                "message": "WhatsApp Audio Message Sent!",
-                "message_id": message_id,
-                "translated_text": translated_text
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'message': 'CropPlanRow marked as read successfully'}, status=status.HTTP_200_OK)

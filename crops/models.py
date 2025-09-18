@@ -42,6 +42,7 @@ class CropPlanRow(models.Model):
 
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    read = models.BooleanField(default=False)  # New field to mark as read
 
     def save(self, *args, **kwargs):
         if self.action and str(self.action).lower() == "nan":
