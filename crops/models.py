@@ -33,33 +33,6 @@ class UserCropPlan(models.Model):
     crop_plan = models.FileField(upload_to='crop_plans/', null=True, blank=True)
     start_date = models.DateField()
 
-# class CropPlanRow(models.Model):
-#     user_crop_plan = models.ForeignKey(UserCropPlan, related_name='plan_rows', on_delete=models.CASCADE)
-#     date = models.DateField()
-#     day = models.IntegerField()
-#     stage = models.CharField(max_length=255)
-#     action = models.TextField()
-#
-#
-#     created = models.DateTimeField(auto_now_add=True)
-#     updated = models.DateTimeField(auto_now=True)
-#
-#     def __str__(self):
-#         return f"{self.date} - {self.stage}"
-#
-#     @property
-#     def user(self):
-#         return self.user_crop_plan.user
-#
-#     @property
-#     def zone(self):
-#         return self.user_crop_plan.zone
-#
-#     @property
-#     def crop(self):
-#         return self.user_crop_plan.crop
-#     class Meta:
-#         ordering = ['id']
 class CropPlanRow(models.Model):
     user_crop_plan = models.ForeignKey(UserCropPlan, related_name='plan_rows', on_delete=models.CASCADE)
     date = models.DateField()
@@ -92,3 +65,14 @@ class CropPlanRow(models.Model):
 
     class Meta:
         ordering = ['id']
+
+
+
+class NudgeStageImage(models.Model):
+    stage = models.CharField(max_length=100, unique=True)
+    icon = models.ImageField(upload_to='nudge_stage_icons/')
+    description = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return self.stage
+ 

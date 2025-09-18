@@ -55,3 +55,6 @@ class UserCropPlanAdmin(admin.ModelAdmin):
     search_fields = ['user__username', 'crop__crop_name']
     inlines = [CropPlanRowInline]
 
+@admin.register(NudgeStageImage)
+class NudgeStageImageAdmin(admin.ModelAdmin):
+    list_display = ['stage', 'description']

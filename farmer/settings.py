@@ -192,3 +192,5 @@ FAISS_INDEX_DIR = config('FAISS_INDEX_DIR')
 INDEX_FILE = config('INDEX_FILE')
 META_FILE = config('META_FILE')
 
+
+DEFAULT_NUDGE_ICON_URL = '/static/images/nudges/default.png'

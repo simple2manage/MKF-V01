@@ -1,6 +1,10 @@
 from django.urls import path
 from . import views
 from .views import *
+from django.conf import settings
+from django.conf.urls.static import static
+
+
 
 app_name = 'crops'
 
@@ -14,3 +18,5 @@ urlpatterns = [
     path('send-crop-action/', SendCropPlanActionView.as_view(), name='send-crop-action')
 
 ]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

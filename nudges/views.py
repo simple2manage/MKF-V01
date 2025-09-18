@@ -356,9 +356,9 @@ class TodayCropPlanActivityAPIView(APIView):
             user_crop_plan__user=user,
             user_crop_plan__zone_id=zone_id,
             user_crop_plan__crop_id=crop_id,
-            date=today
+            date=today 
         ).order_by('id')
 
-        serializer = CropPlanRowSerializer(crop_plan_rows, many=True)
+        serializer = CropPlanRowSerializer(crop_plan_rows, many=True, context={"request": request})
 
         return Response(serializer.data, status=status.HTTP_200_OK)
