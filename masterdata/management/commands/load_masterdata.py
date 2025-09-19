@@ -47,11 +47,41 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.WARNING(f"MachineType already exists: {name}"))
         else:
             self.stdout.write(self.style.WARNING("No 'MachineTypes' sheet found in Excel."))
-            # ---------------- Load NudgeStageImages ---------------- #
+        #     # ---------------- Load NudgeStageImages ---------------- #
+        # if "NudgeStageImages" in wb.sheetnames:
+        #     sheet = wb["NudgeStageImages"]
+        #     for row in sheet.iter_rows(min_row=2, values_only=True):
+        #         stage, icon_filename, description = row[:3]
+        #
+        #         if stage:
+        #             obj, created = NudgeStageImage.objects.get_or_create(stage=stage.strip())
+        #
+        #             # handle description
+        #             if description:
+        #                 obj.description = description.strip()
+        #
+        #             # handle icon (expects file in MEDIA_ROOT/nudge_stage_icons/)
+        #             if icon_filename:
+        #                 icon_path = os.path.join(settings.MEDIA_ROOT, "nudge_stage_icons", icon_filename)
+        #                 if os.path.exists(icon_path):
+        #                     with open(icon_path, "rb") as f:
+        #                         obj.icon.save(icon_filename, File(f), save=False)
+        #                 else:
+        #                     self.stdout.write(self.style.WARNING(f"Icon file not found: {icon_filename}"))
+        #
+        #             obj.save()
+        #
+        #             if created:
+        #                 self.stdout.write(self.style.SUCCESS(f"NudgeStageImage created: {stage}"))
+        #             else:
+        #                 self.stdout.write(self.style.WARNING(f"NudgeStageImage updated: {stage}"))
+        # else:
+        #     self.stdout.write(self.style.WARNING("No 'NudgeStageImages' sheet found in Excel."))
+        # ---------------- Load NudgeStageImages ---------------- #
         if "NudgeStageImages" in wb.sheetnames:
             sheet = wb["NudgeStageImages"]
             for row in sheet.iter_rows(min_row=2, values_only=True):
-                stage, icon_filename, description = row[:3]
+                stage, icon_path, description = row[:3]
 
                 if stage:
                     obj, created = NudgeStageImage.objects.get_or_create(stage=stage.strip())
@@ -60,14 +90,18 @@ class Command(BaseCommand):
                     if description:
                         obj.description = description.strip()
 
-                    # handle icon (expects file in MEDIA_ROOT/nudge_stage_icons/)
-                    if icon_filename:
-                        icon_path = os.path.join(settings.MEDIA_ROOT, "nudge_stage_icons", icon_filename)
+                    # handle icon (Excel now contains either full or relative path)
+                    if icon_path:
+                        # if relative path, make it relative to BASE_DIR
+                        if not os.path.isabs(icon_path):
+                            icon_path = os.path.join(settings.BASE_DIR, icon_path)
+
                         if os.path.exists(icon_path):
+                            filename = os.path.basename(icon_path)
                             with open(icon_path, "rb") as f:
-                                obj.icon.save(icon_filename, File(f), save=False)
+                                obj.icon.save(filename, File(f), save=False)
                         else:
-                            self.stdout.write(self.style.WARNING(f"Icon file not found: {icon_filename}"))
+                            self.stdout.write(self.style.WARNING(f"Icon file not found: {icon_path}"))
 
                     obj.save()
 
