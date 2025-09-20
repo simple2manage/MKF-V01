@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import *
-from masterdata.models import MachineRegistration, InputMaster
+from masterdata.models import *
 from crops.serializer import *
 
 class NudgesSerializer(serializers.ModelSerializer):
@@ -113,6 +113,12 @@ class NudgesSerializer(serializers.ModelSerializer):
                     "input_details": {
                         "id": input_obj.id,
                         "name": input_obj.name.name,
+                        "category": input_obj.category_name,
+                        "subcategory": input_obj.subcategory_name,
+                        "unit": input_obj.unit_display,
+                        "form_type": input_obj.form_type_display,
+                        "description": input_obj.description,
+                        "image": input_obj.image.url if input_obj.image else None,
                     }
                 })
             except InputMaster.DoesNotExist:

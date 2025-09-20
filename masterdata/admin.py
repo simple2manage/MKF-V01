@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import MachineType, MachineRegistration, Input, InputMaster
+from .models import *
 
 
 # ------------------ Machine ------------------
@@ -18,15 +18,25 @@ class MachineRegistrationAdmin(admin.ModelAdmin):
 
 
 # ------------------ Input ------------------
-@admin.register(Input)
-class InputAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name')
-    search_fields = ('name',)
-
-
 @admin.register(InputMaster)
 class InputMasterAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'name', 'created_at')
-    list_filter = ('created_at', 'name')
-    search_fields = ('name__name', 'user__username')
-    autocomplete_fields = ('name',)   # ✅ removed 'user'
+    list_display = ['id', 'get_input_name', 'get_user', 'created_at']
+    search_fields = ['name__name', 'user__name', 'user__phone_number']
+
+    def get_input_name(self, obj):
+        return obj.name.name if obj.name else "No Input"
+    get_input_name.admin_order_field = 'name'
+    get_input_name.short_description = 'Input'
+
+    def get_user(self, obj):
+        if obj.user:
+            return obj.user.name or obj.user.phone_number
+        return "No User"
+    get_user.admin_order_field = 'user'
+    get_user.short_description = 'User'
+    
+    
+@admin.register(Input)
+class InputAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'category', 'subcategory')
+    search_fields = ('name', 'category__name', 'subcategory__name')
