@@ -67,8 +67,8 @@ class Input(models.Model):
     UNIT_CHOICES = [
         ('kg', 'Kilogram'),
         ('litre', 'Litre'),
-        ('gram', 'Gram'),
-        ('ml', 'Millilitre'),
+        # ('gram', 'Gram'),
+        # ('ml', 'Millilitre'),
         ('piece', 'Piece'),
         ('packet', 'Packet'),
         ('bottle', 'Bottle'),
