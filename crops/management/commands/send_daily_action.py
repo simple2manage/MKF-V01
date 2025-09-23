@@ -200,7 +200,6 @@ WHATSAPP_TOKEN = os.getenv('WHATSAPP_ACCESS_TOKEN')
 
 
 def whatsapp_send_text(recipient, message_text):
-    """Send WhatsApp text message via WhatsApp Cloud API"""
     url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
@@ -218,7 +217,6 @@ def whatsapp_send_text(recipient, message_text):
 
 
 def translate_to_malayalam(text):
-    """Translate text from English (or auto-detected) to Malayalam"""
     try:
         return GoogleTranslator(source="auto", target="ml").translate(text)
     except Exception:
@@ -226,15 +224,13 @@ def translate_to_malayalam(text):
 
 
 class Command(BaseCommand):
-    help = "Send combined today's and previous unread CropPlanRow actions via WhatsApp"
+    help = "Send combined previous unread + today's CropPlanRow actions via WhatsApp"
 
     def handle(self, *args, **kwargs):
         today = date.today()
 
-        # Get all users who have tasks today or unread tasks
-        plan_rows = CropPlanRow.objects.filter(
-            date__lte=today
-        ).order_by('user_crop_plan__user', 'date', 'created')
+        # Get all users with tasks today or previous unread tasks
+        plan_rows = CropPlanRow.objects.filter(date__lte=today).order_by('user_crop_plan__user', 'date', 'created')
 
         if not plan_rows.exists():
             self.stdout.write(self.style.WARNING("No CropPlanRow actions found."))
@@ -248,7 +244,7 @@ class Command(BaseCommand):
                 user_rows[user] = []
             user_rows[user].append(row)
 
-        # Send message per user
+        # Send combined message per user
         for user, rows in user_rows.items():
             recipient = user.phone_number
             if not recipient:
@@ -257,22 +253,23 @@ class Command(BaseCommand):
 
             tasks_texts = []
 
-            # Separate today's and previous tasks
+            # Previous unread tasks first
             for row in rows:
-                if row.date == today:
-                    if row.action:
-                        action_ml = translate_to_malayalam(row.action)
-                        tasks_texts.append(f"✅ ഇന്നത്തെ ടാസ്ക്: {action_ml}")
-                elif not row.read:
-                    if row.action:
-                        action_ml = translate_to_malayalam(row.action)
-                        tasks_texts.append(f"✅ {row.date} ലെ ടാസ്ക്: {action_ml}")
+                if row.date < today and not row.read and row.action:
+                    action_ml = translate_to_malayalam(row.action)
+                    tasks_texts.append(f"✅ {row.date} ലെ ടാസ്ക്: {action_ml}")
+
+            # Today's tasks
+            for row in rows:
+                if row.date == today and row.action:
+                    action_ml = translate_to_malayalam(row.action)
+                    tasks_texts.append(f"✅ ഇന്നത്തെ ടാസ്ക്: {action_ml}")
 
             if not tasks_texts:
                 self.stdout.write(self.style.WARNING(f"No actions to send for {user}."))
                 continue
 
-            # Final message
+            # Compose single message
             message_text = f"ഹായ് {user.name}, ഞാന്‍ മൈ ക്രിഷി ഫ്രണ്ട് 👩‍🌾\n\nനിങ്ങളുടെ ടാസ്ക് ലിസ്റ്റ്:\n" + "\n".join(tasks_texts)
 
             try:
@@ -281,9 +278,9 @@ class Command(BaseCommand):
                     f"✅ Sent combined tasklist (ID: {text_msg_id}) to {user} ({recipient})"
                 ))
 
-                # Mark previous unread tasks as read
+                # Mark previous tasks as read
                 for row in rows:
-                    if row.date < today:
+                    if row.date < today and not row.read:
                         row.read = True
                         row.save()
 
