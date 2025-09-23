@@ -231,41 +231,35 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         today = date.today()
 
-        # Collect all rows for today
+        user_tasks = defaultdict(list)
+
+        # --- Collect today's tasks ---
         today_rows = CropPlanRow.objects.filter(date=today).order_by(
             'user_crop_plan__user', 'created'
         )
-
-        if not today_rows.exists():
-            self.stdout.write(self.style.WARNING("No CropPlanRow actions found for today."))
-            return
-
-        # Group rows by user
-        user_tasks = defaultdict(list)
         for row in today_rows:
             if row.action:
                 user_tasks[row.user_crop_plan.user].append(("ഇന്നത്തെ ടാസ്ക്", row.action))
 
-        # Add unread previous tasks for each user
+        # --- Collect previous unread tasks ---
+        previous_unread = CropPlanRow.objects.filter(
+            date__lt=today,
+            read=False
+        ).order_by("user_crop_plan__user", "date")
+
+        for prev in previous_unread:
+            if prev.action:
+                user_tasks[prev.user_crop_plan.user].append((f"{prev.date} ലെ ടാസ്ക്", prev.action))
+
+        if not user_tasks:
+            self.stdout.write(self.style.WARNING("No CropPlanRow actions (today or pending) found."))
+            return
+
+        # --- Send one message per user ---
         for user, tasks in user_tasks.items():
-            previous_unread = CropPlanRow.objects.filter(
-                user_crop_plan__user=user,
-                date__lt=today,
-                read=False
-            ).order_by("date")
-
-            for prev in previous_unread:
-                if prev.action:
-                    tasks.append((f"{prev.date} ലെ ടാസ്ക്", prev.action))
-
-            # Now build message for this user
             recipient = user.phone_number
             if not recipient:
                 self.stdout.write(self.style.WARNING(f"Skipping user {user} - No phone number found."))
-                continue
-
-            if not tasks:
-                self.stdout.write(self.style.WARNING(f"Skipping user {user} - No tasks to send."))
                 continue
 
             translated_tasks = []
@@ -284,7 +278,7 @@ class Command(BaseCommand):
                 ))
 
                 # Mark previous as read
-                previous_unread.update(read=True)
+                previous_unread.filter(user_crop_plan__user=user).update(read=True)
 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(
