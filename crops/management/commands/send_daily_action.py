@@ -230,7 +230,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         today = date.today()
-
         user_tasks = defaultdict(list)
 
         # --- Collect today's tasks ---
@@ -246,7 +245,6 @@ class Command(BaseCommand):
             date__lt=today,
             read=False
         ).order_by("user_crop_plan__user", "date")
-
         for prev in previous_unread:
             if prev.action:
                 user_tasks[prev.user_crop_plan.user].append((f"{prev.date} ലെ ടാസ്ക്", prev.action))
@@ -255,7 +253,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No CropPlanRow actions (today or pending) found."))
             return
 
-        # --- Send one message per user ---
+        # --- Send one WhatsApp message per user ---
         for user, tasks in user_tasks.items():
             recipient = user.phone_number
             if not recipient:
@@ -267,9 +265,13 @@ class Command(BaseCommand):
                 action_ml = translate_to_malayalam(action_text)
                 translated_tasks.append(f"✅ {label}: {action_ml}")
 
+            # join all tasks into one text
             tasklist_text = "\n".join(translated_tasks)
 
-            input_text = f"ഹായ് {user.name}, ഞാന്‍ മൈ ക്രിഷി ഫ്രണ്ട് 👩‍🌾\n\nനിങ്ങളുടെ ടാസ്ക് ലിസ്റ്റ്:\n{tasklist_text}"
+            input_text = (
+                f"ഹായ് {user.name}, ഞാന്‍ മൈ ക്രിഷി ഫ്രണ്ട് 👩‍🌾\n\n"
+                f"നിങ്ങളുടെ ടാസ്ക് ലിസ്റ്റ്:\n{tasklist_text}"
+            )
 
             try:
                 text_msg_id = whatsapp_send_text(recipient, input_text)
@@ -277,7 +279,7 @@ class Command(BaseCommand):
                     f"✅ Sent grouped tasklist (ID: {text_msg_id}) to {user} ({recipient})"
                 ))
 
-                # Mark previous as read
+                # mark previous as read
                 previous_unread.filter(user_crop_plan__user=user).update(read=True)
 
             except Exception as e:
