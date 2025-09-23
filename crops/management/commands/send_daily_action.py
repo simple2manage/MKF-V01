@@ -226,69 +226,68 @@ def translate_to_malayalam(text):
 
 
 class Command(BaseCommand):
-    help = "Send today's CropPlanRow action + pending (unread) tasks via WhatsApp as separate messages"
+    help = "Send combined today's and previous unread CropPlanRow actions via WhatsApp"
 
     def handle(self, *args, **kwargs):
         today = date.today()
 
-        # Get today's crop plan rows
-        plan_rows = CropPlanRow.objects.filter(date=today).order_by(
-            'user_crop_plan__user', 'created'
-        )
+        # Get all users who have tasks today or unread tasks
+        plan_rows = CropPlanRow.objects.filter(
+            date__lte=today
+        ).order_by('user_crop_plan__user', 'date', 'created')
 
         if not plan_rows.exists():
-            self.stdout.write(self.style.WARNING("No CropPlanRow actions found for today."))
+            self.stdout.write(self.style.WARNING("No CropPlanRow actions found."))
             return
 
+        # Group rows by user
+        user_rows = {}
         for row in plan_rows:
             user = row.user_crop_plan.user
-            recipient = user.phone_number
+            if user not in user_rows:
+                user_rows[user] = []
+            user_rows[user].append(row)
 
+        # Send message per user
+        for user, rows in user_rows.items():
+            recipient = user.phone_number
             if not recipient:
                 self.stdout.write(self.style.WARNING(f"Skipping user {user} - No phone number found."))
                 continue
 
-            # --- Today's task ---
-            if row.action:
-                today_task_ml = translate_to_malayalam(row.action)
-                today_msg = f"ഹായ് {user.name}, ഇന്ന് നിങ്ങളുടെ ടാസ്ക്:\n✅ {today_task_ml}"
-                try:
-                    text_msg_id = whatsapp_send_text(recipient, today_msg)
-                    self.stdout.write(self.style.SUCCESS(
-                        f"✅ Sent today's task (ID: {text_msg_id}) to {user} ({recipient})"
-                    ))
-                except Exception as e:
-                    self.stdout.write(self.style.ERROR(
-                        f"❌ Failed to send today's task for {user} ({recipient}): {str(e)}"
-                    ))
+            tasks_texts = []
 
-            # --- Previous unread tasks ---
-            previous_unread = CropPlanRow.objects.filter(
-                user_crop_plan=row.user_crop_plan,
-                date__lt=today,
-                read=False
-            ).order_by("date")
+            # Separate today's and previous tasks
+            for row in rows:
+                if row.date == today:
+                    if row.action:
+                        action_ml = translate_to_malayalam(row.action)
+                        tasks_texts.append(f"✅ ഇന്നത്തെ ടാസ്ക്: {action_ml}")
+                elif not row.read:
+                    if row.action:
+                        action_ml = translate_to_malayalam(row.action)
+                        tasks_texts.append(f"✅ {row.date} ലെ ടാസ്ക്: {action_ml}")
 
-            if previous_unread.exists():
-                unread_tasks_texts = []
-                for prev in previous_unread:
-                    if prev.action:
-                        action_ml = translate_to_malayalam(prev.action)
-                        unread_tasks_texts.append(f"✅ {prev.date} ലെ ടാസ്ക്: {action_ml}")
+            if not tasks_texts:
+                self.stdout.write(self.style.WARNING(f"No actions to send for {user}."))
+                continue
 
-                unread_msg = f"ഹായ് {user.name}, നിങ്ങളുടെ മുമ്പത്തെ ടാസ്കുകള്‍:\n" + "\n".join(unread_tasks_texts)
+            # Final message
+            message_text = f"ഹായ് {user.name}, ഞാന്‍ മൈ ക്രിഷി ഫ്രണ്ട് 👩‍🌾\n\nനിങ്ങളുടെ ടാസ്ക് ലിസ്റ്റ്:\n" + "\n".join(tasks_texts)
 
-                try:
-                    text_msg_id = whatsapp_send_text(recipient, unread_msg)
-                    self.stdout.write(self.style.SUCCESS(
-                        f"✅ Sent previous unread tasks (ID: {text_msg_id}) to {user} ({recipient})"
-                    ))
-                    # Mark previous tasks as read
-                    previous_unread.update(read=True)
+            try:
+                text_msg_id = whatsapp_send_text(recipient, message_text)
+                self.stdout.write(self.style.SUCCESS(
+                    f"✅ Sent combined tasklist (ID: {text_msg_id}) to {user} ({recipient})"
+                ))
 
-                except Exception as e:
-                    self.stdout.write(self.style.ERROR(
-                        f"❌ Failed to send previous unread tasks for {user} ({recipient}): {str(e)}"
-                    ))
-            else:
-                self.stdout.write(self.style.WARNING(f"No previous unread tasks for {user}"))
+                # Mark previous unread tasks as read
+                for row in rows:
+                    if row.date < today:
+                        row.read = True
+                        row.save()
+
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(
+                    f"❌ Failed for user {user} ({recipient}): {str(e)}"
+                ))
