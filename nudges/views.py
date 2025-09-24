@@ -76,9 +76,21 @@ class NudgesView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request):
+        budgeting_id = request.query_params.get('id')  # Get 'id' from query params
+
+        if budgeting_id:
+            try:
+                budget = Nudges.objects.get(id=budgeting_id, user=request.user)
+            except Nudges.DoesNotExist:
+                return Response({'error': 'Budgeting object not found or not owned by the user'}, status=404)
+            serializer = NudgesSerializer(budget, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # If no ID provided, return all budgets for the user
         budgets = Nudges.objects.filter(user=request.user)
-        serializer = NudgesSerializer(budgets, many=True)
-        return Response(serializer.data)
+        serializer = NudgesSerializer(budgets, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 # class NudgesView(APIView):
 #     permission_classes = [IsAuthenticated]
