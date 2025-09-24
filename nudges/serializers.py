@@ -69,13 +69,10 @@ class NudgesSerializer(serializers.ModelSerializer):
 
     # ---------------- RESPONSE ENRICHMENT ---------------- #
     def to_representation(self, instance):
-        """
-        Expand machine_estimation and input_estimation with details.
-        """
         rep = super().to_representation(instance)
 
         # ---- Expand machine details ---- #
-        machine_data = rep.get("machine_estimation", {}).get("machines", [])
+        machine_data = rep.get("machine_estimation", {}).get("data", {}).get("machines", [])
         expanded_machines = []
         for m in machine_data:
             try:
@@ -95,11 +92,14 @@ class NudgesSerializer(serializers.ModelSerializer):
                     }
                 })
             except MachineRegistration.DoesNotExist:
-                expanded_machines.append(m)  # keep original if not found
-        rep["machine_estimation"]["machines"] = expanded_machines
+                expanded_machines.append(m)
+
+        if "machine_estimation" in rep:
+            rep["machine_estimation"]["machines"] = expanded_machines
+            rep["machine_estimation"].pop("data", None)  # remove raw data
 
         # ---- Expand input details ---- #
-        input_data = rep.get("input_estimation", {}).get("inputs", [])
+        input_data = rep.get("input_estimation", {}).get("data", {}).get("inputs", [])
         expanded_inputs = []
         for i in input_data:
             try:
@@ -109,7 +109,7 @@ class NudgesSerializer(serializers.ModelSerializer):
                 expanded_inputs.append({
                     "input_id": i["input_id"],
                     "quantity": i.get("quantity"),
-                    "unit_cost": i.get("unit_cost"),
+                    "unit_cost": i.get("unit_cost") or i.get("cost_per_unit"),
                     "input_details": {
                         "id": input_obj.id,
                         "name": input_obj.name.name,
@@ -123,6 +123,10 @@ class NudgesSerializer(serializers.ModelSerializer):
                 })
             except InputMaster.DoesNotExist:
                 expanded_inputs.append(i)
-        rep["input_estimation"]["inputs"] = expanded_inputs
+
+        if "input_estimation" in rep:
+            rep["input_estimation"]["inputs"] = expanded_inputs
+            rep["input_estimation"].pop("data", None)  # remove raw data
 
         return rep
+

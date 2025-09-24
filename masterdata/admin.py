@@ -40,3 +40,18 @@ class InputMasterAdmin(admin.ModelAdmin):
 class InputAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'category', 'subcategory')
     search_fields = ('name', 'category__name', 'subcategory__name')
+
+
+@admin.register(InputCategory)
+class InputCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "description", "created_at")
+    search_fields = ("name", "description")
+    ordering = ("name",)
+
+
+@admin.register(InputSubCategory)
+class InputSubCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "description", "created_at")
+    search_fields = ("name", "description", "category__name")
+    list_filter = ("category",)
+    ordering = ("category__name", "name")

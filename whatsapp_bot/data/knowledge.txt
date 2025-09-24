@@ -18,7 +18,13 @@ Grapes need a long dry season and moderate rainfall.
 Papaya thrives in warm climate and requires good drainage.
 Guava trees grow well in both dry and humid climates.
 Mango trees need hot summers and moderate rainfall for best fruiting.
-Paddy requires a hot and humid climate with temperatures between 20°C and 35°C. 
-Paddy grows best in clayey or alluvial soil that can retain water. The crop needs plenty of rainfall, usually between 100–200 cm, or assured irrigation for good yield. Standing water is essential during most of its growing season, and transplantation of seedlings is commonly practiced. 
-Paddy is mainly grown as a kharif crop during the monsoon, but in southern states like Tamil Nadu and Andhra Pradesh, it is also cultivated as a rabi and summer crop with irrigation. 
-Major rice-producing states in India include West Bengal, Uttar Pradesh, Punjab, Bihar, Odisha, Tamil Nadu, Andhra Pradesh, and Assam. Being a water-intensive crop that thrives in lowland areas, paddy is the staple food crop of India and provides the main diet for a large section of the population.
+Paddy cultivation in Kerala is done in three main seasons: Virippu (autumn / first crop, April-May to September-October), Mundakan (winter / second crop, September-October to December-January), and Puncha (summer / third crop, December-January to March-April). 
+Rice fields in Kerala have been declining: the area under paddy dropped from about 3.22 lakh hectares in 2001-02 to 1.95 lakh hectares in 2021-22. 
+Paddy production likewise decreased: from about 7.03 lakh tonnes to about 5.62 lakh tonnes over the same period in Kerala. 
+Rice productivity in Kerala has fallen: average yields (in wetland paddy) were about 2,884 kg per hectare in 2021-22, which is a drop compared to earlier years. 
+Paddy farming in Kuttanad (Alappuzha, Pathanamthitta, Kottayam districts) happens in land that is below sea level, with fields surrounded by backwaters; these “polder” systems are rich in biomass and yield well. 
+Rice varieties are changing: in Kuttanad, the older variety Uma (MO-16) is being replaced by Pournami (MO-23), which matures more quickly and gives heavier grain yield. 
+Paddy seed diversity is being preserved: in Thrissur district, an event distributed 124 varieties of paddy seeds to farmers, including 64 traditional Kerala varieties and 60 from other states. Examples include Malakkaran, Thulasi bhog, Jugal, Gandhakasala, Kunhinellu, Seethabhag, and Thavalakkannan. 
+Rice (paddy) cultivation is becoming less profitable, which, along with high labour cost and less procurement by government bodies, is pushing farmers in Kerala to switch to other crops.
+Paddy varieties popular in Kerala are sometimes also grown in neighbouring Tamil Nadu, because of demand. For example, farmers in Dindigul district grow varieties like Jyothi Matta, Sindu Kaveri, Akashya, which are bought by traders to be sold in Kerala. 
+Rice (paddy) in South India more broadly is grown in different wetland and upland systems; Kerala has very specialized wetland-systems (like Kuttanad, Kole wetlands) whereas places in Tamil Nadu, Andhra Pradesh etc have different irrigation, soil, and climate systems. (This is a general point inferred from local reports, combining Kerala with neighbouring states.)

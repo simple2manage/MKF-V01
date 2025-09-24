@@ -1,3 +1,5 @@
+#whatsapp_bot/services/rag_service.py
+# RAG (Retrieval-Augmented Generation) service implementation
 import os
 import json
 import pathlib
@@ -27,12 +29,24 @@ def _load_corpus():
 
 def _ensure_index():
     INDEX_DIR.mkdir(parents=True, exist_ok=True)
-    if INDEX_PATH.exists() and META_PATH.exists():
-        index = faiss.read_index(str(INDEX_PATH))
-        with open(META_PATH, "r", encoding="utf-8") as f:
-            corpus = json.load(f)
-        return index, corpus
 
+    # If index + meta exist, check timestamps
+    if INDEX_PATH.exists() and META_PATH.exists():
+        data_mtime = os.path.getmtime(DATA_FILE)
+        index_mtime = os.path.getmtime(INDEX_PATH)
+        meta_mtime = os.path.getmtime(META_PATH)
+
+        # If knowledge.txt is newer → rebuild
+        if data_mtime > index_mtime or data_mtime > meta_mtime:
+            INDEX_PATH.unlink(missing_ok=True)
+            META_PATH.unlink(missing_ok=True)
+        else:
+            index = faiss.read_index(str(INDEX_PATH))
+            with open(META_PATH, "r", encoding="utf-8") as f:
+                corpus = json.load(f)
+            return index, corpus
+
+    # Build fresh index
     corpus = _load_corpus()
     vecs = _embedder.encode(corpus, convert_to_numpy=True, show_progress_bar=False).astype(np.float32)
     faiss.normalize_L2(vecs)
@@ -41,7 +55,9 @@ def _ensure_index():
     faiss.write_index(index, str(INDEX_PATH))
     with open(META_PATH, "w", encoding="utf-8") as f:
         json.dump(corpus, f, ensure_ascii=False, indent=2)
+
     return index, corpus
+
 
 _index, _corpus = _ensure_index()
 
