@@ -18,6 +18,130 @@ from .models import Nudges, CropPlanRow
 from .serializers import NudgesSerializer
 
 
+# class NudgesView(APIView):
+#     permission_classes = [IsAuthenticated]
+#
+#     def post(self, request):
+#         data = request.data.copy()
+#         row_number = data.get('row_number')
+#         zone_id = data.get('zone')
+#         crop_id = data.get('crop')
+#
+#         if not (row_number and zone_id and crop_id):
+#             return Response({'error': 'row_number, zone, and crop are required'}, status=400)
+#
+#         try:
+#             row_index = int(row_number) - 1
+#             crop_plan_rows = CropPlanRow.objects.filter(
+#                 user_crop_plan__zone_id=zone_id,
+#                 user_crop_plan__crop_id=crop_id
+#             ).order_by('id')
+#             crop_plan_row = crop_plan_rows[row_index]
+#             data['crop_plan_row'] = crop_plan_row.id
+#         except (IndexError, ValueError):
+#             return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
+#
+#         # Handle is_read flags
+#         for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
+#             if field in data:
+#                 value = data[field]
+#                 if isinstance(value, dict) and "data" in value:
+#                     value["is_read"] = True
+#                 else:
+#                     value = {"data": value, "is_read": True}
+#                 data[field] = value
+#
+#         serializer = NudgesSerializer(data=data, context={'request': request})
+#         if serializer.is_valid():
+#             serializer.save(user=request.user)
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     def patch(self, request):
+#         data = request.data.copy()
+#         row_number = data.get('row_number')
+#         zone_id = data.get('zone')
+#         crop_id = data.get('crop')
+#
+#         if not (row_number and zone_id and crop_id):
+#             return Response({'error': 'row_number, zone, and crop are required'}, status=400)
+#
+#         # ✅ find crop_plan_row from row_number + zone_id + crop_id
+#         try:
+#             row_index = int(row_number) - 1
+#             crop_plan_rows = CropPlanRow.objects.filter(
+#                 user_crop_plan__zone_id=zone_id,
+#                 user_crop_plan__crop_id=crop_id
+#             ).order_by('id')
+#             crop_plan_row = crop_plan_rows[row_index]
+#         except (IndexError, ValueError):
+#             return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
+#
+#         # fetch existing nudges record
+#         try:
+#             budgeting = Nudges.objects.get(crop_plan_row=crop_plan_row, user=request.user)
+#         except Nudges.DoesNotExist:
+#             return Response({'error': 'Nudges object not found for this crop_plan_row'}, status=404)
+#
+#         # Handle is_read flags
+#         for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
+#             if field in data:
+#                 value = data[field]
+#                 if isinstance(value, dict) and "data" in value:
+#                     value["is_read"] = True
+#                 else:
+#                     value = {"data": value, "is_read": True}
+#                 data[field] = value
+#
+#         serializer = NudgesSerializer(budgeting, data=data, partial=True, context={'request': request})
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     # def patch(self, request):
+#     #     data = request.data.copy()
+#     #     crop_plan_row_id = data.get('crop_plan_row')  # ✅ now we expect crop_plan_row instead of nudge id
+#     #
+#     #     if not crop_plan_row_id:
+#     #         return Response({'error': 'crop_plan_row is required for PATCH'}, status=400)
+#     #
+#     #     try:
+#     #         budgeting = Nudges.objects.get(crop_plan_row=crop_plan_row_id, user=request.user)
+#     #     except Nudges.DoesNotExist:
+#     #         return Response({'error': 'Nudges object not found for this crop_plan_row'}, status=404)
+#     #
+#     #     # Handle is_read flags
+#     #     for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
+#     #         if field in data:
+#     #             value = data[field]
+#     #             if isinstance(value, dict) and "data" in value:
+#     #                 value["is_read"] = True
+#     #             else:
+#     #                 value = {"data": value, "is_read": True}
+#     #             data[field] = value
+#     #
+#     #     serializer = NudgesSerializer(budgeting, data=data, partial=True, context={'request': request})
+#     #     if serializer.is_valid():
+#     #         serializer.save()
+#     #         return Response(serializer.data, status=status.HTTP_200_OK)
+#     #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     def get(self, request):
+#         crop_plan_row_id = request.query_params.get('crop_plan_row')
+#
+#         if crop_plan_row_id:
+#             try:
+#                 budget = Nudges.objects.get(crop_plan_row=crop_plan_row_id, user=request.user)
+#             except Nudges.DoesNotExist:
+#                 return Response({'error': 'Nudges object not found for this crop_plan_row'}, status=404)
+#             serializer = NudgesSerializer(budget, context={'request': request})
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#
+#         # If no crop_plan_row provided, return all budgets for the user
+#         budgets = Nudges.objects.filter(user=request.user)
+#         serializer = NudgesSerializer(budgets, many=True, context={'request': request})
+#         return Response(serializer.data, status=status.HTTP_200_OK)
 class NudgesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -34,7 +158,8 @@ class NudgesView(APIView):
             row_index = int(row_number) - 1
             crop_plan_rows = CropPlanRow.objects.filter(
                 user_crop_plan__zone_id=zone_id,
-                user_crop_plan__crop_id=crop_id
+                user_crop_plan__crop_id=crop_id,
+                user_crop_plan__user=request.user   # ✅ restrict to logged-in user
             ).order_by('id')
             crop_plan_row = crop_plan_rows[row_index]
             data['crop_plan_row'] = crop_plan_row.id
@@ -59,13 +184,28 @@ class NudgesView(APIView):
 
     def patch(self, request):
         data = request.data.copy()
-        crop_plan_row_id = data.get('crop_plan_row')  # ✅ now we expect crop_plan_row instead of nudge id
+        row_number = data.get('row_number')
+        zone_id = data.get('zone')
+        crop_id = data.get('crop')
 
-        if not crop_plan_row_id:
-            return Response({'error': 'crop_plan_row is required for PATCH'}, status=400)
+        if not (row_number and zone_id and crop_id):
+            return Response({'error': 'row_number, zone, and crop are required'}, status=400)
 
+        # ✅ find crop_plan_row scoped to the logged-in user
         try:
-            budgeting = Nudges.objects.get(crop_plan_row=crop_plan_row_id, user=request.user)
+            row_index = int(row_number) - 1
+            crop_plan_rows = CropPlanRow.objects.filter(
+                user_crop_plan__zone_id=zone_id,
+                user_crop_plan__crop_id=crop_id,
+                user_crop_plan__user=request.user   # ✅ user-specific filter
+            ).order_by('id')
+            crop_plan_row = crop_plan_rows[row_index]
+        except (IndexError, ValueError):
+            return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
+
+        # fetch existing nudges record
+        try:
+            budgeting = Nudges.objects.get(crop_plan_row=crop_plan_row, user=request.user)
         except Nudges.DoesNotExist:
             return Response({'error': 'Nudges object not found for this crop_plan_row'}, status=404)
 
@@ -90,7 +230,10 @@ class NudgesView(APIView):
 
         if crop_plan_row_id:
             try:
-                budget = Nudges.objects.get(crop_plan_row=crop_plan_row_id, user=request.user)
+                budget = Nudges.objects.get(
+                    crop_plan_row=crop_plan_row_id,
+                    user=request.user   # ✅ ensure only own data
+                )
             except Nudges.DoesNotExist:
                 return Response({'error': 'Nudges object not found for this crop_plan_row'}, status=404)
             serializer = NudgesSerializer(budget, context={'request': request})
