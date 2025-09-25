@@ -620,6 +620,60 @@ class NudgesViewSupervisor(APIView):
 #         serializer = CropPlanRowSerializer(crop_plan_rows, many=True, context={"request": request})
 
 #         return Response(serializer.data, status=status.HTTP_200_OK)
+# class TodayCropPlanActivityAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+#
+#     def get(self, request, *args, **kwargs):
+#         user = request.user
+#         zone_id = request.query_params.get('zone')
+#         crop_id = request.query_params.get('crop')
+#
+#         if not (zone_id and crop_id):
+#             return Response({'error': 'zone and crop query parameters are required'}, status=400)
+#
+#         today = timezone.now().date()
+#
+#         # Get today's crop plan rows
+#         crop_plan_rows = CropPlanRow.objects.filter(
+#             user_crop_plan__user=user,
+#             user_crop_plan__zone_id=zone_id,
+#             user_crop_plan__crop_id=crop_id,
+#             date=today
+#         ).order_by('id')
+#
+#         result = []
+#
+#         for row in crop_plan_rows:
+#             row_data = CropPlanRowSerializer(row, context={'request': request}).data
+#
+#             # Get all nudges for this row, pick the latest
+#             nudges_qs = Nudges.objects.filter(
+#                 user=user,
+#                 crop_plan_row=row.id
+#             ).order_by('-id')  # latest first
+#
+#             if nudges_qs.exists():
+#                 nudge = nudges_qs.first()
+#                 nudge_data = NudgesSerializer(nudge, context={'request': request}).data
+#
+#                 # Merge cost-related fields
+#                 for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
+#                     if field in nudge_data:
+#                         row_data[field] = nudge_data[field]
+#             else:
+#                 # No nudge exists, set default empty values
+#                 for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
+#                     row_data[field] = {"data": None, "is_read": False}
+#
+#             result.append(row_data)
+#
+#         return Response(result, status=200)
+
+from django.utils import timezone
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
 class TodayCropPlanActivityAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -633,24 +687,25 @@ class TodayCropPlanActivityAPIView(APIView):
 
         today = timezone.now().date()
 
-        # Get today's crop plan rows
+        # Include today's rows + previous unread rows
         crop_plan_rows = CropPlanRow.objects.filter(
             user_crop_plan__user=user,
             user_crop_plan__zone_id=zone_id,
-            user_crop_plan__crop_id=crop_id,
-            date=today
-        ).order_by('id')
+            user_crop_plan__crop_id=crop_id
+        ).filter(
+            models.Q(date=today) | models.Q(date__lt=today, read=False)
+        ).order_by('date', 'id')
 
         result = []
 
         for row in crop_plan_rows:
             row_data = CropPlanRowSerializer(row, context={'request': request}).data
 
-            # Get all nudges for this row, pick the latest
+            # Get latest nudge for this row
             nudges_qs = Nudges.objects.filter(
                 user=user,
                 crop_plan_row=row.id
-            ).order_by('-id')  # latest first
+            ).order_by('-id')
 
             if nudges_qs.exists():
                 nudge = nudges_qs.first()
@@ -661,7 +716,7 @@ class TodayCropPlanActivityAPIView(APIView):
                     if field in nudge_data:
                         row_data[field] = nudge_data[field]
             else:
-                # No nudge exists, set default empty values
+                # Default if no nudge exists
                 for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
                     row_data[field] = {"data": None, "is_read": False}
 
