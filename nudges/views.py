@@ -371,7 +371,56 @@ class NudgesViewSupervisor(APIView):
             return JsonResponse({'error': str(e)}, status=500)
 
 
-
+#
+# class TodayCropPlanActivityAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+#
+#     def get(self, request, *args, **kwargs):
+#         user = request.user
+#         zone_id = request.query_params.get('zone')
+#         crop_id = request.query_params.get('crop')
+#
+#         if not (zone_id and crop_id):
+#             return Response({'error': 'zone and crop query parameters are required'}, status=400)
+#
+#         today = timezone.now().date()
+#
+#         # Include today's rows + previous unread rows
+#         crop_plan_rows = CropPlanRow.objects.filter(
+#             user_crop_plan__user=user,
+#             user_crop_plan__zone_id=zone_id,
+#             user_crop_plan__crop_id=crop_id
+#         ).filter(
+#             models.Q(date=today) | models.Q(date__lt=today, read=False)
+#         ).order_by('date', 'id')
+#
+#         result = []
+#
+#         for row in crop_plan_rows:
+#             row_data = CropPlanRowSerializer(row, context={'request': request}).data
+#
+#             # Get latest nudge for this row
+#             nudges_qs = Nudges.objects.filter(
+#                 user=user,
+#                 crop_plan_row=row.id
+#             ).order_by('-id')
+#
+#             if nudges_qs.exists():
+#                 nudge = nudges_qs.first()
+#                 nudge_data = NudgesSerializer(nudge, context={'request': request}).data
+#
+#                 # Merge cost-related fields
+#                 for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
+#                     if field in nudge_data:
+#                         row_data[field] = nudge_data[field]
+#             else:
+#                 # Default if no nudge exists
+#                 for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
+#                     row_data[field] = {"data": None, "is_read": False}
+#
+#             result.append(row_data)
+#
+#         return Response(result, status=200)
 class TodayCropPlanActivityAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -385,13 +434,13 @@ class TodayCropPlanActivityAPIView(APIView):
 
         today = timezone.now().date()
 
-        # Include today's rows + previous unread rows
+        # Include only unread rows (today + previous unread)
         crop_plan_rows = CropPlanRow.objects.filter(
             user_crop_plan__user=user,
             user_crop_plan__zone_id=zone_id,
             user_crop_plan__crop_id=crop_id
         ).filter(
-            models.Q(date=today) | models.Q(date__lt=today, read=False)
+            models.Q(date=today, read=False) | models.Q(date__lt=today, read=False)
         ).order_by('date', 'id')
 
         result = []
