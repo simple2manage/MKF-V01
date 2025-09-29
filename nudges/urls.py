@@ -6,5 +6,6 @@ from .views import *
 urlpatterns = [
     path('nudges-cost/', NudgesView.as_view(), name='nudge-cost'),
     path('nudges-cost-report/', NudgesViewSupervisor.as_view(), name='nudge-cost-summary'),
-    path('today-activity/', TodayCropPlanActivityAPIView.as_view(), name='today-crop-plan-activity')
+    path('today-activity/', TodayCropPlanActivityAPIView.as_view(), name='today-crop-plan-activity'),
+path('nudges-cost-voice/', NudgesViewVoice.as_view(), name='nudge-cost-voice')
 ]

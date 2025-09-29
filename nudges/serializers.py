@@ -130,3 +130,8 @@ class NudgesSerializer(serializers.ModelSerializer):
 
         return rep
 
+class NudgesVoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Nudges
+        fields = ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous', 'zone', 'crop']
+
