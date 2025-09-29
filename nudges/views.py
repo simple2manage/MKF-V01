@@ -485,7 +485,7 @@ from .models import Nudges, CropPlanRow
 from .serializers import NudgesSerializer
 
 # Import your new services
-from .services import transcribe_audio_with_sarvam
+from .utils import transcribe_audio_with_sarvam
 from .utils import parse_cost_details_from_text
 
 
@@ -668,7 +668,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from .serializers import NudgesVoiceSerializer
 from .models import Nudges, CropPlanRow
-from .services import transcribe_audio_with_sarvam
+
 
 from .utils import parse_cost_details_from_text
 from rest_framework.views import APIView
@@ -680,7 +680,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Nudges, CustomUser
 from crops.models import CropPlanRow
 from .serializers import NudgesVoiceSerializer
-from .services import transcribe_audio_with_sarvam
+from .utils import transcribe_audio_with_sarvam
 
 # Default wrappers
 def default_labour(): return {"data": {}, "is_read": False}
@@ -697,7 +697,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Nudges, CustomUser
 from crops.models import CropPlanRow
 from .serializers import NudgesVoiceSerializer
-from .services import transcribe_audio_with_sarvam
+from .utils import transcribe_audio_with_sarvam
 
 import re
 
@@ -904,156 +904,4 @@ class NudgesViewVoice(APIView):
         serializer = NudgesVoiceSerializer(nudges_objs, many=True)
         return Response(serializer.data)
 
-# class NudgesViewVoice(APIView):
-#     permission_classes = [IsAuthenticated]
-#     parser_classes = [JSONParser, MultiPartParser, FormParser]
-#
-#     def _wrap_jsonfield(self, value):
-#         if isinstance(value, dict):
-#             value.setdefault("is_read", True)
-#             if "data" not in value:
-#                 value["data"] = {}
-#             return value
-#         # If it's a number, string, or list
-#         return {"data": value, "is_read": True}
-#
-#     def _process_voice_input(self, request):
-#         """Process audio file if uploaded and parse cost details."""
-#         audio_file = request.FILES.get('audio_file')
-#         if not audio_file:
-#             return {}
-#
-#         audio_data = audio_file.read()
-#         transcription_result = transcribe_audio_with_sarvam(audio_data)
-#
-#         if "error" in transcription_result:
-#             return Response(
-#                 {'error': f"Transcription failed: {transcription_result['error']}"},
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
-#
-#         transcribed_text = transcription_result.get('transcription') or transcription_result.get('text')
-#         if not transcribed_text:
-#             return Response({'error': 'Transcription result was empty.'}, status=status.HTTP_400_BAD_REQUEST)
-#
-#         parsed_costs = parse_cost_details_from_text(transcribed_text)
-#
-#         # Wrap numbers into proper JSONField format
-#         wrapped_costs = {field: self._wrap_jsonfield(value) for field, value in parsed_costs.items()}
-#
-#         # Validate using serializer
-#         serializer = NudgesVoiceSerializer(data=wrapped_costs)
-#         serializer.is_valid(raise_exception=True)
-#         return serializer.validated_data
-#
-#     def _get_crop_plan_row(self, user, row_number, zone_id, crop_id):
-#         try:
-#             row_index = int(row_number) - 1
-#             crop_plan_rows = CropPlanRow.objects.filter(
-#                 user_crop_plan__zone_id=zone_id,
-#                 user_crop_plan__crop_id=crop_id,
-#                 user_crop_plan__user=user
-#             ).order_by('id')
-#             return crop_plan_rows[row_index]
-#         except (IndexError, ValueError):
-#             return None
-#
-#     # def _prepare_data(self, request_data, voice_data):
-#     #     """Merge request data and voice data and wrap JSONFields."""
-#     #     data = request_data.copy()
-#     #     data.update(voice_data)
-#     #
-#     #     for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
-#     #         if field in data:
-#     #             data[field] = self._wrap_jsonfield(data[field])
-#     #     return data
-#     def _prepare_data(self, request_data, voice_data):
-#         data = request_data.copy()
-#         data.update(voice_data)
-#
-#         # Ensure JSONFields are always dicts
-#         for field in ['labour_estimation', 'machine_estimation', 'input_estimation', 'miscellaneous']:
-#             if field not in data or data[field] is None:
-#                 # fallback to defaults
-#                 if field == 'labour_estimation':
-#                     data[field] = default_labour()
-#                 elif field == 'machine_estimation':
-#                     data[field] = default_machine()
-#                 elif field == 'input_estimation':
-#                     data[field] = default_input()
-#                 elif field == 'miscellaneous':
-#                     data[field] = default_miscellaneous()
-#             else:
-#                 data[field] = self._wrap_jsonfield(data[field])
-#
-#         return data
-#
-#     def post(self, request):
-#         # Process voice input
-#         voice_data = self._process_voice_input(request)
-#         if isinstance(voice_data, Response):
-#             return voice_data  # Error from transcription
-#
-#         row_number = request.data.get('row_number')
-#         zone_id = request.data.get('zone')
-#         crop_id = request.data.get('crop')
-#
-#         if not (row_number and zone_id and crop_id):
-#             return Response({'error': 'row_number, zone, and crop are required'}, status=400)
-#
-#         crop_plan_row = self._get_crop_plan_row(request.user, row_number, zone_id, crop_id)
-#         if not crop_plan_row:
-#             return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
-#
-#         data = self._prepare_data(request.data, voice_data)
-#         data['crop_plan_row'] = crop_plan_row.id
-#
-#         serializer = NudgesVoiceSerializer(data=data, context={'request': request})
-#         if serializer.is_valid():
-#             serializer.save(user=request.user)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-#
-#     def patch(self, request):
-#         # Process voice input
-#         voice_data = self._process_voice_input(request)
-#         if isinstance(voice_data, Response):
-#             return voice_data  # Error from transcription
-#
-#         row_number = request.data.get('row_number')
-#         zone_id = request.data.get('zone')
-#         crop_id = request.data.get('crop')
-#
-#         if not (row_number and zone_id and crop_id):
-#             return Response({'error': 'row_number, zone, and crop are required'}, status=400)
-#
-#         crop_plan_row = self._get_crop_plan_row(request.user, row_number, zone_id, crop_id)
-#         if not crop_plan_row:
-#             return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
-#
-#         try:
-#             nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row, user=request.user)
-#         except Nudges.DoesNotExist:
-#             return Response({'error': 'Nudges object not found for this crop_plan_row'}, status=404)
-#
-#         data = self._prepare_data(request.data, voice_data)
-#         serializer = NudgesVoiceSerializer(nudges_obj, data=data, partial=True, context={'request': request})
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-#
-#     def get(self, request):
-#         crop_plan_row_id = request.query_params.get('crop_plan_row')
-#
-#         if crop_plan_row_id:
-#             try:
-#                 nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row_id, user=request.user)
-#             except Nudges.DoesNotExist:
-#                 return Response({'error': 'Nudges object not found for this crop_plan_row'}, status=404)
-#             serializer = NudgesVoiceSerializer(nudges_obj, context={'request': request})
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-#
-#         nudges_objs = Nudges.objects.filter(user=request.user)
-#         serializer = NudgesVoiceSerializer(nudges_objs, many=True, context={'request': request})
-#         return Response(serializer.data, status=status.HTTP_200_OK)
+
