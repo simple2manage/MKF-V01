@@ -241,56 +241,6 @@ class NudgesViewSupervisor(APIView):
             "total_budget_cost": str(total),
         }
 
-    # def calculate_summary(self, budgets):
-    #     total_labour_cost = Decimal(0)
-    #     total_machine_cost = Decimal(0)
-    #     total_input_cost = Decimal(0)
-    #     total_miscellaneous = Decimal(0)
-
-    #     for budget in budgets:
-
-    #         try:
-    #             labour = budget.labour_estimation or {}
-    #             male = Decimal(labour.get('male_labour_cost', 0)) * int(labour.get('male_labour_count', 0))
-    #             female = Decimal(labour.get('female_labour_cost', 0)) * int(labour.get('female_labour_count', 0))
-    #             total_labour_cost += male + female
-    #         except Exception:
-    #             pass
-
-    #         # ✅ Machine cost
-    #         try:
-    #             machine = budget.machine_estimation or {}
-    #             mc = Decimal(machine.get('machine_count', 0))
-    #             hrs = Decimal(machine.get('working_hours', 0))
-    #             rate = Decimal(machine.get('rate_per_hour', 0))
-    #             total_machine_cost += mc * rate * hrs
-    #         except Exception:
-    #             pass
-
-    #         # ✅ Input cost
-    #         try:
-    #             input_data = budget.input_estimation or {}
-    #             qty = Decimal(input_data.get('input_quantity', 0))
-    #             cost = Decimal(input_data.get('input_cost', 0))
-    #             total_input_cost += qty * cost
-    #         except Exception:
-    #             pass
-
-    #         # ✅ Miscellaneous
-    #         try:
-    #             total_miscellaneous += Decimal(budget.miscellaneous or 0)
-    #         except Exception:
-    #             pass
-
-    #     total = total_labour_cost + total_machine_cost + total_input_cost + total_miscellaneous
-
-    #     return {
-    #         "total_labour_cost": str(total_labour_cost),
-    #         "total_machine_cost": str(total_machine_cost),
-    #         "total_input_cost": str(total_input_cost),
-    #         "total_miscellaneous": str(total_miscellaneous),
-    #         "total_budget_cost": str(total)
-    #     }
 
     def get(self, request, *args, **kwargs):
         try:
@@ -422,13 +372,7 @@ class TodayCropPlanActivityAPIView(APIView):
 
         return Response(result, status=200)
 
-import re
-import json
-from rest_framework.views import APIView
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+
 
 from .models import Nudges, CustomUser # Assuming these models are defined elsewhere
 from crops.models import CropPlanRow # Assuming this model is defined elsewhere
@@ -436,64 +380,458 @@ from .serializers import NudgesVoiceSerializer # Assuming this serializer is def
 from .utils import transcribe_audio_with_sarvam  # Assuming this is the correct import
 
 
-def default_labour(): return {"data": 0, "is_read": False}
+import re
+import json
+from word2number import w2n
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+
+# ======================
+# Default JSON field structures
+# ======================
+#
+# def default_labour():
+#     return {
+#         "male_labour_cost": 0,
+#         "male_labour_count": 0,
+#         "female_labour_cost": 0,
+#         "female_labour_count": 0,
+#         "is_read": False
+#     }
+#
+# def default_machine():
+#     return {"data": 0, "is_read": False}
+#
+# def default_input():
+#     return {"data": 0, "is_read": False}
+#
+# def default_miscellaneous():
+#     return {"data": 0.0, "is_read": False}
+#
+#
+# # ======================
+# # Helpers
+# # ======================
+#
+# def _to_number(val: str) -> float:
+#     """Convert digit or word into a number."""
+#     try:
+#         return float(val)
+#     except ValueError:
+#         try:
+#             return float(w2n.word_to_num(val))
+#         except Exception:
+#             return 0
+#
+#
+# # ======================
+# # Parser function
+# # ======================
+# def parse_cost_details_from_text(text: str) -> dict:
+#     """
+#     Extract numbers from speech text, handling both English and Transliterated (Malayalam) keywords.
+#     """
+#     parsed_data = {}
+#     text = text.lower().replace('.', '')
+#     print("DEBUG: Transcribed text =>", text)
+#
+#     labour_data = default_labour()
+#
+#     # FIX: Updated patterns to include Malayalam transcribed keywords (മെയിൽ, ലേബർ, ഫീമെയിൽ, മെഷീൻ, ഇൻപുട്ട്, മിസലേനിയസ്)
+#     # The regex now matches (English OR Malayalam) word, followed by optional 'cost', or 'count'.
+#
+#     # Matching (male OR മെയിൽ), (labour OR ലേബർ)
+#     MALE_LABOUR = r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)"
+#     FEMALE_LABOUR = r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)"
+#
+#     # Allow numbers to be words or digits, and optionally match "cost"
+#     VALUE_AND_OPTIONAL_COST = r"(?:cost)?\s*(?:is|:)?\s*([\w\d,.]+)"
+#
+#     patterns = {
+#         "male_labour_cost": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "male_labour_count": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "female_labour_cost": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "female_labour_count": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "machine": r"(?:machine|മെഷീൻ)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "input": r"(?:input|ഇൻപുട്ട്)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "miscellaneous": r"(?:miscellaneous|മിസലേനിയസ്|misc)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#     }
+#
+#     # --- Labour Estimation ---
+#     for field, pattern in patterns.items():
+#         if "labou" not in field:
+#             continue
+#
+#         match = re.search(pattern, text)
+#         print(f"DEBUG: Checking {field} with regex {pattern} =>", match.group(1) if match else None)
+#         if match:
+#             raw_val = match.group(1).replace(',', '')
+#             value = _to_number(raw_val)
+#             print(f"DEBUG: Raw value for {field} => {raw_val}, Converted => {value}")
+#
+#             if "cost" in field:
+#                 labour_data[field] = float(value)
+#             else:
+#                 labour_data[field] = int(value)
+#
+#             # Note: is_read is set to True if any labour component is successfully read
+#             labour_data["is_read"] = True
+#
+#     parsed_data["labour_estimation"] = labour_data
+#
+#     # ---- Other costs ----
+#     keywords_map = {
+#         "machine": "machine_estimation",
+#         "input": "input_estimation",
+#         "miscellaneous": "miscellaneous",
+#     }
+#
+#     for keyword, field in keywords_map.items():
+#         pattern = patterns[keyword]
+#         match = re.search(pattern, text)
+#         print(f"DEBUG: Checking {keyword} =>", match.group(1) if match else None)
+#         if match:
+#             raw_val = match.group(1).replace(',', '')
+#             value = _to_number(raw_val)
+#             parsed_data[field] = {"data": float(value), "is_read": True}
+#         else:
+#             default_func = default_miscellaneous if field == "miscellaneous" else default_machine
+#             parsed_data[field] = default_func()
+#
+#     print("DEBUG: Final parsed data =>", parsed_data)
+#     return parsed_data
+#
+#
+# class NudgesViewVoice(APIView):
+#     permission_classes = [IsAuthenticated]
+#     parser_classes = [JSONParser, MultiPartParser, FormParser]
+#
+#     def _process_voice_input(self, request):
+#         """Transcribe audio and parse cost details."""
+#         audio_file = request.FILES.get("audio_file")
+#         if not audio_file:
+#             # Fallback for testing without actual file
+#             return parse_cost_details_from_text(
+#                 "male labour cost 500. male labour count 2. female labour cost 400. female labour count 3. machine is 500. input is 400. miscellaneous is 500.")
+#
+#         audio_data = audio_file.read()
+#         transcription_result = transcribe_audio_with_sarvam(audio_data)
+#
+#         if "error" in transcription_result:
+#             return transcription_result
+#
+#         transcribed_text = transcription_result.get("transcription") or transcription_result.get("text", "")
+#         return parse_cost_details_from_text(transcribed_text)
+#
+#     def _get_crop_plan_row(self, user, row_number, zone_id, crop_id):
+#         try:
+#             row_index = int(row_number) - 1
+#             crop_plan_rows = CropPlanRow.objects.filter(
+#                 user_crop_plan__zone_id=zone_id,
+#                 user_crop_plan__crop_id=crop_id,
+#                 user_crop_plan__user=user,
+#             ).order_by("id")
+#             # 💡 NOTE: Assuming the correct CropPlanRow.DoesNotExist is imported
+#             return crop_plan_rows[row_index]
+#         except (IndexError, ValueError):
+#             return None
+#         except Exception:
+#             # Catching generic error if CropPlanRow is not properly defined/imported
+#             return None
+#
+#     def post(self, request):
+#         voice_data = self._process_voice_input(request)
+#         if "error" in voice_data:
+#             return Response(
+#                 {"error": f"Transcription failed: {voice_data['error']}"},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             )
+#
+#         row_number = request.data.get("row_number")
+#         zone_id = request.data.get("zone")
+#         crop_id = request.data.get("crop")
+#
+#         if not (row_number and zone_id and crop_id):
+#             return Response({"error": "row_number, zone, and crop are required"}, status=400)
+#
+#         crop_plan_row = self._get_crop_plan_row(request.user, row_number, zone_id, crop_id)
+#         if not crop_plan_row:
+#             return Response({"error": "Invalid row_number or no matching crop plan rows found"}, status=400)
+#
+#         data = request.data.dict()
+#         data.update(voice_data)
+#
+#         # We don't need to manually add 'crop_plan_row' to 'data' if we pass it
+#         # as a keyword argument to serializer.save() and it's in read_only_fields.
+#         # data["crop_plan_row"] = crop_plan_row.id # (Alternative approach)
+#
+#         # JSON fields default handling (kept original logic)
+#         json_fields = {
+#             "labour_estimation": default_labour,
+#             "machine_estimation": default_machine,
+#             "input_estimation": default_input,
+#             "miscellaneous": default_miscellaneous,
+#         }
+#
+#         for field, default_func in json_fields.items():
+#             value = data.get(field)
+#             if value is not None and not isinstance(value, dict):
+#                 try:
+#                     data[field] = json.loads(value)
+#                 except (json.JSONDecodeError, TypeError):
+#                     try:
+#                         numeric_value = _to_number(value)
+#                         if field == "labour_estimation":
+#                             labour_struct = default_labour()
+#                             labour_struct["male_labour_cost"] = numeric_value
+#                             labour_struct["is_read"] = True
+#                             data[field] = labour_struct
+#                         else:
+#                             data[field] = {"data": float(numeric_value), "is_read": True}
+#                     except Exception:
+#                         data[field] = default_func()
+#                         data[field]["is_read"] = True
+#
+#         serializer = NudgesVoiceSerializer(data=data, context={"request": request})
+#         if serializer.is_valid():
+#             # 🟢 FIX: Called .save() and explicitly passed the foreign key objects.
+#             serializer.save(
+#                 user=request.user,
+#                 crop_plan_row=crop_plan_row  # Pass the model object
+#             )
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         else:
+#             print("DEBUG: Serializer errors =>", serializer.errors)
+#             print("DEBUG: Input data =>", data)
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     def patch(self, request):
+#         voice_data = self._process_voice_input(request)
+#         if "error" in voice_data:
+#             return Response(
+#                 {"error": f"Transcription failed: {voice_data['error']}"},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             )
+#
+#         row_number = request.data.get("row_number")
+#         zone_id = request.data.get("zone")
+#         crop_id = request.data.get("crop")
+#
+#         if not (row_number and zone_id and crop_id):
+#             return Response({"error": "row_number, zone, and crop are required"}, status=400)
+#
+#         crop_plan_row = self._get_crop_plan_row(request.user, row_number, zone_id, crop_id)
+#         if not crop_plan_row:
+#             return Response({"error": "Invalid row_number or no matching crop plan rows found"}, status=400)
+#
+#         try:
+#             nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row, user=request.user)
+#         except Nudges.DoesNotExist:
+#             return Response({"error": "Nudges object not found for this crop_plan_row"}, status=404)
+#
+#         data = request.data.dict()
+#         data.update(voice_data)
+#
+#         json_fields = {
+#             "labour_estimation": default_labour,
+#             "machine_estimation": default_machine,
+#             "input_estimation": default_input,
+#             "miscellaneous": default_miscellaneous,
+#         }
+#
+#         for field, default_func in json_fields.items():
+#             if field in data:
+#                 value = data.get(field)
+#                 if value is not None and not isinstance(value, dict):
+#                     try:
+#                         data[field] = json.loads(value)
+#                     except (json.JSONDecodeError, TypeError):
+#                         try:
+#                             numeric_value = _to_number(value)
+#                             if field == "labour_estimation":
+#                                 labour_struct = default_labour()
+#                                 labour_struct["male_labour_cost"] = numeric_value
+#                                 labour_struct["is_read"] = True
+#                                 data[field] = labour_struct
+#                             else:
+#                                 data[field] = {"data": float(numeric_value), "is_read": True}
+#                         except Exception:
+#                             data[field] = default_func()
+#                             data[field]["is_read"] = True
+#
+#         serializer = NudgesVoiceSerializer(nudges_obj, data=data, partial=True, context={"request": request})
+#         if serializer.is_valid():
+#             # 🟢 FIX: .save() is correctly called for PATCH
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         else:
+#             print("DEBUG: Serializer errors =>", serializer.errors)
+#             print("DEBUG: Input data =>", data)
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     def get(self, request):
+#         crop_plan_row_id = request.query_params.get("crop_plan_row")
+#
+#         if crop_plan_row_id:
+#             try:
+#                 nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row_id, user=request.user)
+#                 serializer = NudgesVoiceSerializer(nudges_obj)
+#                 return Response(serializer.data)
+#             except Nudges.DoesNotExist:
+#                 return Response({"error": "Nudges object not found"}, status=404)
+#
+#         nudges_objs = Nudges.objects.filter(user=request.user)
+#         serializer = NudgesVoiceSerializer(nudges_objs, many=True)
+#         return Response(serializer.data)
 
 
-def default_machine(): return {"data": 0, "is_read": False}
+from .models import Nudges, CustomUser  # Assuming these models are defined elsewhere
+from crops.models import CropPlanRow  # Assuming this model is defined elsewhere
+from .serializers import NudgesVoiceSerializer  # Assuming this serializer is defined elsewhere
+from .utils import transcribe_audio_with_sarvam  # Assuming this is the correct import
+
+import re
+import json
+from word2number import w2n
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 
-def default_input(): return {"data": 0, "is_read": False}
+# ======================
+# Default JSON field structures
+# ======================
+
+def default_labour():
+    return {
+        "male_labour_cost": 0.0,  # Changed to 0.0 for consistency
+        "male_labour_count": 0,
+        "female_labour_cost": 0.0,  # Changed to 0.0 for consistency
+        "female_labour_count": 0,
+        "is_read": False
+    }
 
 
-def default_miscellaneous(): return {"data": 0.0, "is_read": False}
+def default_machine():
+    return {"data": 0.0, "is_read": False}
 
 
-# FIXED PARSER FUNCTION
+def default_input():
+    return {"data": 0.0, "is_read": False}
+
+
+def default_miscellaneous():
+    return {"data": 0.0, "is_read": False}
+
+
+# ======================
+# Helpers
+# ======================
+
+def _to_number(val: str) -> float:
+    """Convert digit or word into a number."""
+    try:
+        return float(val)
+    except ValueError:
+        try:
+            return float(w2n.word_to_num(val))
+        except Exception:
+            return 0.0  # Return 0.0 for safety
+
+
+# ======================
+# Parser function (MODIFIED TO PRESERVE DATA ON PATCH)
+# ======================
 def parse_cost_details_from_text(text: str) -> dict:
     """
-    Extract numbers from text for each field using the robust regex.
+    Extract numbers from speech text, handling both English and Transliterated (Malayalam) keywords.
+    Only returns fields that are successfully read from the text.
     """
     parsed_data = {}
-    text = text.lower()
+    text = text.lower().replace('.', '')
+    print("DEBUG: Transcribed text =>", text)
 
+    # Temporary holder for labour fields that are read
+    temp_labour_data = {}
+    labour_read = False  # Flag to track if ANY labour field was read
+
+    patterns = {
+        "male_labour_cost": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+        "male_labour_count": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+        "female_labour_cost": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+        "female_labour_count": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+        "machine": r"(?:machine|മെഷീൻ)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+        "input": r"(?:input|ഇൻപുട്ട്)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+        "miscellaneous": r"(?:miscellaneous|മിസലേനിയസ്|misc)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+    }
+
+    # --- Labour Estimation ---
+    for field, pattern in patterns.items():
+        if "labou" not in field:
+            continue
+
+        match = re.search(pattern, text)
+        print(f"DEBUG: Checking {field} with regex {pattern} =>", match.group(1) if match else None)
+        if match:
+            raw_val = match.group(1).replace(',', '')
+            value = _to_number(raw_val)
+            print(f"DEBUG: Raw value for {field} => {raw_val}, Converted => {value}")
+            labour_read = True
+
+            if "cost" in field:
+                temp_labour_data[field] = float(value)
+            else:
+                # Ensure count is an integer
+                temp_labour_data[field] = int(round(value))
+
+                # Only add labour_estimation to parsed_data if any labour field was successfully read
+    if labour_read:
+        # Start with default structure, then update with extracted values
+        final_labour_data = default_labour()
+        final_labour_data.update(temp_labour_data)
+        final_labour_data["is_read"] = True
+        parsed_data["labour_estimation"] = final_labour_data
+
+    # ---- Other costs ----
     keywords_map = {
-        # *** THE FINAL FIX: Changed 'labour' to 'labor' to match STT output ***
-        'labor': 'labour_estimation',
-        'machine': 'machine_estimation',
-        'input': 'input_estimation',
-        'miscellaneous': 'miscellaneous',
+        "machine": "machine_estimation",
+        "input": "input_estimation",
+        "miscellaneous": "miscellaneous",
     }
 
     for keyword, field in keywords_map.items():
-        # Uses \s+ to explicitly match one or more spaces between the keyword and the number.
-        match = re.search(rf"{keyword}\s+([\d,.]+)", text)
-
+        pattern = patterns[keyword]
+        match = re.search(pattern, text)
+        print(f"DEBUG: Checking {keyword} =>", match.group(1) if match else None)
         if match:
-            # Convert to float (remove commas if present)
-            value = float(match.group(1).replace(',', ''))
-        else:
-            value = 0.0 if field == 'miscellaneous' else 0
+            raw_val = match.group(1).replace(',', '')
+            value = _to_number(raw_val)
+            # Only add the field to parsed_data if a value was found
+            parsed_data[field] = {"data": float(value), "is_read": True}
+        # FIX: DO NOT add the default value if it wasn't mentioned.
+        # This prevents accidental overwrites during PATCH.
 
-        parsed_data[field] = {"data": value, "is_read": True}
-
+    print("DEBUG: Final parsed data =>", parsed_data)
     return parsed_data
 
 
-# ===============================================
-# 3. NUDGES API VIEW (NudgesViewVoice)
-# ===============================================
-
+# ----------------------------------------------------------------------
 class NudgesViewVoice(APIView):
-    # NOTE: You must ensure your models and serializers are imported correctly
-
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def _process_voice_input(self, request):
         """Transcribe audio and parse cost details."""
-        audio_file = request.FILES.get('audio_file')
+        audio_file = request.FILES.get("audio_file")
         if not audio_file:
-            return {}
+            # Fallback for testing without actual file
+            return parse_cost_details_from_text(
+                "male labour cost 500. male labour count 2. female labour cost 400. female labour count 3. machine is 500. input is 400. miscellaneous is 500.")
 
         audio_data = audio_file.read()
         transcription_result = transcribe_audio_with_sarvam(audio_data)
@@ -501,116 +839,139 @@ class NudgesViewVoice(APIView):
         if "error" in transcription_result:
             return transcription_result
 
-        transcribed_text = transcription_result.get('transcription') or transcription_result.get('text', '')
-
-        # This debug code can now be removed, but I'll leave it commented for future use
-        # print(f"\n--- DEBUG LOG ---")
-        # print(f"Transcribed Text Received: >>>{transcribed_text}<<<")
-        # print(f"--- END DEBUG LOG ---\n")
-
+        transcribed_text = transcription_result.get("transcription") or transcription_result.get("text", "")
         return parse_cost_details_from_text(transcribed_text)
 
     def _get_crop_plan_row(self, user, row_number, zone_id, crop_id):
-        # NOTE: Placeholder Model Usage
         try:
             row_index = int(row_number) - 1
-            # Assuming CropPlanRow is available
             crop_plan_rows = CropPlanRow.objects.filter(
                 user_crop_plan__zone_id=zone_id,
                 user_crop_plan__crop_id=crop_id,
-                user_crop_plan__user=user
-            ).order_by('id')
+                user_crop_plan__user=user,
+            ).order_by("id")
+            # 💡 NOTE: Assuming the correct CropPlanRow.DoesNotExist is imported
             return crop_plan_rows[row_index]
-        except (IndexError, ValueError, CropPlanRow.DoesNotExist):
+        except (IndexError, ValueError):
+            return None
+        except Exception:
+            # Catching generic error if CropPlanRow is not properly defined/imported
             return None
 
     def post(self, request):
         voice_data = self._process_voice_input(request)
         if "error" in voice_data:
             return Response(
-                {'error': f"Transcription failed: {voice_data['error']}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": f"Transcription failed: {voice_data['error']}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        row_number = request.data.get('row_number')
-        zone_id = request.data.get('zone')
-        crop_id = request.data.get('crop')
+        row_number = request.data.get("row_number")
+        zone_id = request.data.get("zone")
+        crop_id = request.data.get("crop")
 
         if not (row_number and zone_id and crop_id):
-            return Response({'error': 'row_number, zone, and crop are required'}, status=400)
+            return Response({"error": "row_number, zone, and crop are required"}, status=400)
 
         crop_plan_row = self._get_crop_plan_row(request.user, row_number, zone_id, crop_id)
         if not crop_plan_row:
-            return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
+            return Response({"error": "Invalid row_number or no matching crop plan rows found"}, status=400)
 
+        # Start with request data, then update with extracted voice data
         data = request.data.dict()
         data.update(voice_data)
 
+        # JSON fields default handling: Must ensure all expected fields are present
+        # for a complete POST request, using defaults if not present in voice_data.
         json_fields = {
-            'labour_estimation': default_labour,
-            'machine_estimation': default_machine,
-            'input_estimation': default_input,
-            'miscellaneous': default_miscellaneous,
+            "labour_estimation": default_labour,
+            "machine_estimation": default_machine,
+            "input_estimation": default_input,
+            "miscellaneous": default_miscellaneous,
         }
 
         for field, default_func in json_fields.items():
             value = data.get(field)
-            if value is not None and not isinstance(value, dict):
+            if value is None:
+                # If field not in request or voice_data, use the default structure for POST
+                data[field] = default_func()
+                continue
+
+            if not isinstance(value, dict):
                 try:
                     data[field] = json.loads(value)
                 except (json.JSONDecodeError, TypeError):
                     try:
-                        numeric_value = float(value)
-                        data[field] = {"data": numeric_value, "is_read": True}
-                    except (ValueError, TypeError):
+                        numeric_value = _to_number(value)
+                        if field == "labour_estimation":
+                            labour_struct = default_labour()
+                            labour_struct["male_labour_cost"] = numeric_value
+                            labour_struct["is_read"] = True
+                            data[field] = labour_struct
+                        else:
+                            data[field] = {"data": float(numeric_value), "is_read": True}
+                    except Exception:
+                        # Fallback for error in number conversion
                         data[field] = default_func()
-                        data[field]['is_read'] = True
+                        data[field]["is_read"] = True  # Mark as read/attempted
 
-        data['crop_plan_row'] = crop_plan_row.id
-
-        # NOTE: Placeholder Serializer Usage
-        serializer = NudgesVoiceSerializer(data=data, context={'request': request})
+        serializer = NudgesVoiceSerializer(data=data, context={"request": request})
         if serializer.is_valid():
-            # serializer.save(user=request.user, crop_plan_row=crop_plan_row)
+            # 🟢 FIX: Called .save() and explicitly passed the foreign key objects.
+            serializer.save(
+                user=request.user,
+                crop_plan_row=crop_plan_row  # Pass the model object
+            )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            print("DEBUG: Serializer errors =>", serializer.errors)
+            print("DEBUG: Input data =>", data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    # ----------------------------------------------------------------------
+    # PATCH METHOD (FIXED FOR DATA PRESERVATION)
+    # ----------------------------------------------------------------------
     def patch(self, request):
         voice_data = self._process_voice_input(request)
         if "error" in voice_data:
             return Response(
-                {'error': f"Transcription failed: {voice_data['error']}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": f"Transcription failed: {voice_data['error']}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        row_number = request.data.get('row_number')
-        zone_id = request.data.get('zone')
-        crop_id = request.data.get('crop')
+        row_number = request.data.get("row_number")
+        zone_id = request.data.get("zone")
+        crop_id = request.data.get("crop")
 
         if not (row_number and zone_id and crop_id):
-            return Response({'error': 'row_number, zone, and crop are required'}, status=400)
+            return Response({"error": "row_number, zone, and crop are required"}, status=400)
 
         crop_plan_row = self._get_crop_plan_row(request.user, row_number, zone_id, crop_id)
         if not crop_plan_row:
-            return Response({'error': 'Invalid row_number or no matching crop plan rows found'}, status=400)
+            return Response({"error": "Invalid row_number or no matching crop plan rows found"}, status=400)
 
         try:
-            # NOTE: Placeholder Model Usage
+            # Get the existing object
             nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row, user=request.user)
         except Nudges.DoesNotExist:
-            return Response({'error': 'Nudges object not found for this crop_plan_row'}, status=404)
+            return Response({"error": "Nudges object not found for this crop_plan_row"}, status=404)
 
+        # Start with request data, then update with extracted voice data
         data = request.data.dict()
         data.update(voice_data)
+        # IMPORTANT: Since `voice_data` only contains fields that were read,
+        # any missing fields will be preserved by `partial=True`.
 
         json_fields = {
-            'labour_estimation': default_labour,
-            'machine_estimation': default_machine,
-            'input_estimation': default_input,
-            'miscellaneous': default_miscellaneous,
+            "labour_estimation": default_labour,
+            "machine_estimation": default_machine,
+            "input_estimation": default_input,
+            "miscellaneous": default_miscellaneous,
         }
 
+        # Handle JSON fields that might be strings (e.g., from form-data)
         for field, default_func in json_fields.items():
+            # Only process fields present in the update data
             if field in data:
                 value = data.get(field)
                 if value is not None and not isinstance(value, dict):
@@ -618,30 +979,38 @@ class NudgesViewVoice(APIView):
                         data[field] = json.loads(value)
                     except (json.JSONDecodeError, TypeError):
                         try:
-                            numeric_value = float(value)
-                            data[field] = {"data": numeric_value, "is_read": True}
-                        except (ValueError, TypeError):
+                            numeric_value = _to_number(value)
+                            if field == "labour_estimation":
+                                labour_struct = default_labour()
+                                labour_struct["male_labour_cost"] = numeric_value
+                                labour_struct["is_read"] = True
+                                data[field] = labour_struct
+                            else:
+                                data[field] = {"data": float(numeric_value), "is_read": True}
+                        except Exception:
                             data[field] = default_func()
-                            data[field]['is_read'] = True
+                            data[field]["is_read"] = True
 
-        # NOTE: Placeholder Serializer Usage
-        serializer = NudgesVoiceSerializer(nudges_obj, data=data, partial=True, context={'request': request})
+        serializer = NudgesVoiceSerializer(nudges_obj, data=data, partial=True, context={"request": request})
         if serializer.is_valid():
+            # 🟢 FIX: .save() is correctly called for PATCH
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            print("DEBUG: Serializer errors =>", serializer.errors)
+            print("DEBUG: Input data =>", data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request):
-        crop_plan_row_id = request.query_params.get('crop_plan_row')
+        crop_plan_row_id = request.query_params.get("crop_plan_row")
 
-        # NOTE: Placeholder Model Usage
         if crop_plan_row_id:
             try:
                 nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row_id, user=request.user)
                 serializer = NudgesVoiceSerializer(nudges_obj)
                 return Response(serializer.data)
             except Nudges.DoesNotExist:
-                return Response({'error': 'Nudges object not found'}, status=404)
+                return Response({"error": "Nudges object not found"}, status=404)
 
         nudges_objs = Nudges.objects.filter(user=request.user)
         serializer = NudgesVoiceSerializer(nudges_objs, many=True)
