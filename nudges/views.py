@@ -1048,7 +1048,9 @@ TRANSLITERATION_MAP = {
     "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
     # Malayalam Transliterations (adjust based on Sarvam's common output)
     "വൺ": "1", "ടു": "2", "ത്രീ": "3", "ഫോർ": "4", "ഫൈവ്": "5",
-    # Add more if other variations are commonly transcribed
+    "സെവൻ": "7",  # <--- NEW ENTRY TO FIX THE BUG
+    # You may need to add:
+    "സിക്സ്": "6", "എയിറ്റ്": "8", "നയൺ": "9", "ടെൻ": "10",
 }
 
 
