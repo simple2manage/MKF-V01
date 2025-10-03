@@ -706,12 +706,320 @@ from rest_framework.permissions import IsAuthenticated
 # ======================
 # Default JSON field structures
 # ======================
-
+#
+# def default_labour():
+#     return {
+#         "male_labour_cost": 0.0,  # Changed to 0.0 for consistency
+#         "male_labour_count": 0,
+#         "female_labour_cost": 0.0,  # Changed to 0.0 for consistency
+#         "female_labour_count": 0,
+#         "is_read": False
+#     }
+#
+#
+# def default_machine():
+#     return {"data": 0.0, "is_read": False}
+#
+#
+# def default_input():
+#     return {"data": 0.0, "is_read": False}
+#
+#
+# def default_miscellaneous():
+#     return {"data": 0.0, "is_read": False}
+#
+#
+# # ======================
+# # Helpers
+# # ======================
+#
+# def _to_number(val: str) -> float:
+#     """Convert digit or word into a number."""
+#     try:
+#         return float(val)
+#     except ValueError:
+#         try:
+#             return float(w2n.word_to_num(val))
+#         except Exception:
+#             return 0.0  # Return 0.0 for safety
+#
+#
+# # ======================
+# # Parser function (MODIFIED TO PRESERVE DATA ON PATCH)
+# # ======================
+# def parse_cost_details_from_text(text: str) -> dict:
+#     """
+#     Extract numbers from speech text, handling both English and Transliterated (Malayalam) keywords.
+#     Only returns fields that are successfully read from the text.
+#     """
+#     parsed_data = {}
+#     text = text.lower().replace('.', '')
+#     print("DEBUG: Transcribed text =>", text)
+#
+#     # Temporary holder for labour fields that are read
+#     temp_labour_data = {}
+#     labour_read = False  # Flag to track if ANY labour field was read
+#
+#     patterns = {
+#         "male_labour_cost": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "male_labour_count": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "female_labour_cost": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "female_labour_count": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "machine": r"(?:machine|മെഷീൻ)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "input": r"(?:input|ഇൻപുട്ട്)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#         "miscellaneous": r"(?:miscellaneous|മിസലേനിയസ്|misc)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+#     }
+#
+#     # --- Labour Estimation ---
+#     for field, pattern in patterns.items():
+#         if "labou" not in field:
+#             continue
+#
+#         match = re.search(pattern, text)
+#         print(f"DEBUG: Checking {field} with regex {pattern} =>", match.group(1) if match else None)
+#         if match:
+#             raw_val = match.group(1).replace(',', '')
+#             value = _to_number(raw_val)
+#             print(f"DEBUG: Raw value for {field} => {raw_val}, Converted => {value}")
+#             labour_read = True
+#
+#             if "cost" in field:
+#                 temp_labour_data[field] = float(value)
+#             else:
+#                 # Ensure count is an integer
+#                 temp_labour_data[field] = int(round(value))
+#
+#                 # Only add labour_estimation to parsed_data if any labour field was successfully read
+#     if labour_read:
+#         # Start with default structure, then update with extracted values
+#         final_labour_data = default_labour()
+#         final_labour_data.update(temp_labour_data)
+#         final_labour_data["is_read"] = True
+#         parsed_data["labour_estimation"] = final_labour_data
+#
+#     # ---- Other costs ----
+#     keywords_map = {
+#         "machine": "machine_estimation",
+#         "input": "input_estimation",
+#         "miscellaneous": "miscellaneous",
+#     }
+#
+#     for keyword, field in keywords_map.items():
+#         pattern = patterns[keyword]
+#         match = re.search(pattern, text)
+#         print(f"DEBUG: Checking {keyword} =>", match.group(1) if match else None)
+#         if match:
+#             raw_val = match.group(1).replace(',', '')
+#             value = _to_number(raw_val)
+#             # Only add the field to parsed_data if a value was found
+#             parsed_data[field] = {"data": float(value), "is_read": True}
+#         # FIX: DO NOT add the default value if it wasn't mentioned.
+#         # This prevents accidental overwrites during PATCH.
+#
+#     print("DEBUG: Final parsed data =>", parsed_data)
+#     return parsed_data
+#
+#
+# # ----------------------------------------------------------------------
+# class NudgesViewVoice(APIView):
+#     permission_classes = [IsAuthenticated]
+#     parser_classes = [JSONParser, MultiPartParser, FormParser]
+#
+#     def _process_voice_input(self, request):
+#         """Transcribe audio and parse cost details."""
+#         audio_file = request.FILES.get("audio_file")
+#         if not audio_file:
+#             # Fallback for testing without actual file
+#             return parse_cost_details_from_text(
+#                 "male labour cost 500. male labour count 2. female labour cost 400. female labour count 3. machine is 500. input is 400. miscellaneous is 500.")
+#
+#         audio_data = audio_file.read()
+#         transcription_result = transcribe_audio_with_sarvam(audio_data)
+#
+#         if "error" in transcription_result:
+#             return transcription_result
+#
+#         transcribed_text = transcription_result.get("transcription") or transcription_result.get("text", "")
+#         return parse_cost_details_from_text(transcribed_text)
+#
+#     def _get_crop_plan_row(self, user, row_number, zone_id, crop_id):
+#         try:
+#             row_index = int(row_number) - 1
+#             crop_plan_rows = CropPlanRow.objects.filter(
+#                 user_crop_plan__zone_id=zone_id,
+#                 user_crop_plan__crop_id=crop_id,
+#                 user_crop_plan__user=user,
+#             ).order_by("id")
+#             # 💡 NOTE: Assuming the correct CropPlanRow.DoesNotExist is imported
+#             return crop_plan_rows[row_index]
+#         except (IndexError, ValueError):
+#             return None
+#         except Exception:
+#             # Catching generic error if CropPlanRow is not properly defined/imported
+#             return None
+#
+#     def post(self, request):
+#         voice_data = self._process_voice_input(request)
+#         if "error" in voice_data:
+#             return Response(
+#                 {"error": f"Transcription failed: {voice_data['error']}"},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             )
+#
+#         row_number = request.data.get("row_number")
+#         zone_id = request.data.get("zone")
+#         crop_id = request.data.get("crop")
+#
+#         if not (row_number and zone_id and crop_id):
+#             return Response({"error": "row_number, zone, and crop are required"}, status=400)
+#
+#         crop_plan_row = self._get_crop_plan_row(request.user, row_number, zone_id, crop_id)
+#         if not crop_plan_row:
+#             return Response({"error": "Invalid row_number or no matching crop plan rows found"}, status=400)
+#
+#         # Start with request data, then update with extracted voice data
+#         data = request.data.dict()
+#         data.update(voice_data)
+#
+#         # JSON fields default handling: Must ensure all expected fields are present
+#         # for a complete POST request, using defaults if not present in voice_data.
+#         json_fields = {
+#             "labour_estimation": default_labour,
+#             "machine_estimation": default_machine,
+#             "input_estimation": default_input,
+#             "miscellaneous": default_miscellaneous,
+#         }
+#
+#         for field, default_func in json_fields.items():
+#             value = data.get(field)
+#             if value is None:
+#                 # If field not in request or voice_data, use the default structure for POST
+#                 data[field] = default_func()
+#                 continue
+#
+#             if not isinstance(value, dict):
+#                 try:
+#                     data[field] = json.loads(value)
+#                 except (json.JSONDecodeError, TypeError):
+#                     try:
+#                         numeric_value = _to_number(value)
+#                         if field == "labour_estimation":
+#                             labour_struct = default_labour()
+#                             labour_struct["male_labour_cost"] = numeric_value
+#                             labour_struct["is_read"] = True
+#                             data[field] = labour_struct
+#                         else:
+#                             data[field] = {"data": float(numeric_value), "is_read": True}
+#                     except Exception:
+#                         # Fallback for error in number conversion
+#                         data[field] = default_func()
+#                         data[field]["is_read"] = True  # Mark as read/attempted
+#
+#         serializer = NudgesVoiceSerializer(data=data, context={"request": request})
+#         if serializer.is_valid():
+#             # 🟢 FIX: Called .save() and explicitly passed the foreign key objects.
+#             serializer.save(
+#                 user=request.user,
+#                 crop_plan_row=crop_plan_row  # Pass the model object
+#             )
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         else:
+#             print("DEBUG: Serializer errors =>", serializer.errors)
+#             print("DEBUG: Input data =>", data)
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     # ----------------------------------------------------------------------
+#     # PATCH METHOD (FIXED FOR DATA PRESERVATION)
+#     # ----------------------------------------------------------------------
+#     def patch(self, request):
+#         voice_data = self._process_voice_input(request)
+#         if "error" in voice_data:
+#             return Response(
+#                 {"error": f"Transcription failed: {voice_data['error']}"},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             )
+#
+#         row_number = request.data.get("row_number")
+#         zone_id = request.data.get("zone")
+#         crop_id = request.data.get("crop")
+#
+#         if not (row_number and zone_id and crop_id):
+#             return Response({"error": "row_number, zone, and crop are required"}, status=400)
+#
+#         crop_plan_row = self._get_crop_plan_row(request.user, row_number, zone_id, crop_id)
+#         if not crop_plan_row:
+#             return Response({"error": "Invalid row_number or no matching crop plan rows found"}, status=400)
+#
+#         try:
+#             # Get the existing object
+#             nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row, user=request.user)
+#         except Nudges.DoesNotExist:
+#             return Response({"error": "Nudges object not found for this crop_plan_row"}, status=404)
+#
+#         # Start with request data, then update with extracted voice data
+#         data = request.data.dict()
+#         data.update(voice_data)
+#         # IMPORTANT: Since `voice_data` only contains fields that were read,
+#         # any missing fields will be preserved by `partial=True`.
+#
+#         json_fields = {
+#             "labour_estimation": default_labour,
+#             "machine_estimation": default_machine,
+#             "input_estimation": default_input,
+#             "miscellaneous": default_miscellaneous,
+#         }
+#
+#         # Handle JSON fields that might be strings (e.g., from form-data)
+#         for field, default_func in json_fields.items():
+#             # Only process fields present in the update data
+#             if field in data:
+#                 value = data.get(field)
+#                 if value is not None and not isinstance(value, dict):
+#                     try:
+#                         data[field] = json.loads(value)
+#                     except (json.JSONDecodeError, TypeError):
+#                         try:
+#                             numeric_value = _to_number(value)
+#                             if field == "labour_estimation":
+#                                 labour_struct = default_labour()
+#                                 labour_struct["male_labour_cost"] = numeric_value
+#                                 labour_struct["is_read"] = True
+#                                 data[field] = labour_struct
+#                             else:
+#                                 data[field] = {"data": float(numeric_value), "is_read": True}
+#                         except Exception:
+#                             data[field] = default_func()
+#                             data[field]["is_read"] = True
+#
+#         serializer = NudgesVoiceSerializer(nudges_obj, data=data, partial=True, context={"request": request})
+#         if serializer.is_valid():
+#             # 🟢 FIX: .save() is correctly called for PATCH
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         else:
+#             print("DEBUG: Serializer errors =>", serializer.errors)
+#             print("DEBUG: Input data =>", data)
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#     def get(self, request):
+#         crop_plan_row_id = request.query_params.get("crop_plan_row")
+#
+#         if crop_plan_row_id:
+#             try:
+#                 nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row_id, user=request.user)
+#                 serializer = NudgesVoiceSerializer(nudges_obj)
+#                 return Response(serializer.data)
+#             except Nudges.DoesNotExist:
+#                 return Response({"error": "Nudges object not found"}, status=404)
+#
+#         nudges_objs = Nudges.objects.filter(user=request.user)
+#         serializer = NudgesVoiceSerializer(nudges_objs, many=True)
+#         return Response(serializer.data)
 def default_labour():
     return {
-        "male_labour_cost": 0.0,  # Changed to 0.0 for consistency
+        "male_labour_cost": 0.0,
         "male_labour_count": 0,
-        "female_labour_cost": 0.0,  # Changed to 0.0 for consistency
+        "female_labour_cost": 0.0,
         "female_labour_count": 0,
         "is_read": False
     }
@@ -730,14 +1038,42 @@ def default_miscellaneous():
 
 
 # ======================
-# Helpers
+# Helpers (UPDATED FOR RELIABLE NUMBER CONVERSION)
 # ======================
 
+# Map of common transliterated words to digits
+TRANSLITERATION_MAP = {
+    # English
+    "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+    "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
+    # Malayalam Transliterations (adjust based on Sarvam's common output)
+    "വൺ": "1", "ടു": "2", "ത്രീ": "3", "ഫോർ": "4", "ഫൈവ്": "5",
+    # Add more if other variations are commonly transcribed
+}
+
+
 def _to_number(val: str) -> float:
-    """Convert digit or word into a number."""
+    """Convert digit, word, or transliteration into a number."""
+    val = val.lower().strip().replace(',', '')
+
+    # 1. Check for direct digit conversion
     try:
         return float(val)
     except ValueError:
+        pass  # Not a digit/float, continue
+
+    # 2. Check for known transliterations/words (Normalize to digit string)
+    # This directly fixes the 'ത്രീ' -> 3 and 'ഫോർ' -> 4 issue.
+    for word, digit in TRANSLITERATION_MAP.items():
+        if val == word:
+            val = digit
+            break
+
+    # 3. Try to convert the (potentially normalized) string as a digit again
+    try:
+        return float(val)
+    except ValueError:
+        # 4. Fallback to w2n (mostly for English words that weren't in the map)
         try:
             return float(w2n.word_to_num(val))
         except Exception:
@@ -745,7 +1081,7 @@ def _to_number(val: str) -> float:
 
 
 # ======================
-# Parser function (MODIFIED TO PRESERVE DATA ON PATCH)
+# Parser function (UPDATED REGEX)
 # ======================
 def parse_cost_details_from_text(text: str) -> dict:
     """
@@ -760,14 +1096,18 @@ def parse_cost_details_from_text(text: str) -> dict:
     temp_labour_data = {}
     labour_read = False  # Flag to track if ANY labour field was read
 
+    # IMPROVED: Use [^\s]+ to capture a sequence of non-whitespace characters,
+    # ensuring full words like 'ത്രീ' or '400' are captured instead of 'ത'.
+    value_capture = r"([\d]+(?:\.\d+)?|[^\s]+)"
+
     patterns = {
-        "male_labour_cost": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
-        "male_labour_count": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
-        "female_labour_cost": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
-        "female_labour_count": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
-        "machine": r"(?:machine|മെഷീൻ)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
-        "input": r"(?:input|ഇൻപുട്ട്)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
-        "miscellaneous": r"(?:miscellaneous|മിസലേനിയസ്|misc)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*([\d]+(?:\.\d+)?|\w+)",
+        "male_labour_cost": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
+        "male_labour_count": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*" + value_capture,
+        "female_labour_cost": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
+        "female_labour_count": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*" + value_capture,
+        "machine": r"(?:machine|മെഷീൻ)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
+        "input": r"(?:input|ഇൻപുട്ട്)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
+        "miscellaneous": r"(?:miscellaneous|മിസലേനിയസ്|misc)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
     }
 
     # --- Labour Estimation ---
@@ -776,11 +1116,17 @@ def parse_cost_details_from_text(text: str) -> dict:
             continue
 
         match = re.search(pattern, text)
-        print(f"DEBUG: Checking {field} with regex {pattern} =>", match.group(1) if match else None)
+        print(f"DEBUG: Checking {field} with regex =>", match.group(1) if match else None)
         if match:
-            raw_val = match.group(1).replace(',', '')
+            raw_val = match.group(1)  # Removed .replace(',', '') as it's handled in _to_number
             value = _to_number(raw_val)
             print(f"DEBUG: Raw value for {field} => {raw_val}, Converted => {value}")
+
+            # Skip if conversion resulted in the default fallback
+            if value == 0.0 and raw_val not in ["0", "zero", "0.0"]:
+                print(f"DEBUG: Skipping {field} as conversion to number failed or resulted in 0.0 unexpectedly.")
+                continue
+
             labour_read = True
 
             if "cost" in field:
@@ -809,12 +1155,12 @@ def parse_cost_details_from_text(text: str) -> dict:
         match = re.search(pattern, text)
         print(f"DEBUG: Checking {keyword} =>", match.group(1) if match else None)
         if match:
-            raw_val = match.group(1).replace(',', '')
+            raw_val = match.group(1)
             value = _to_number(raw_val)
-            # Only add the field to parsed_data if a value was found
-            parsed_data[field] = {"data": float(value), "is_read": True}
-        # FIX: DO NOT add the default value if it wasn't mentioned.
-        # This prevents accidental overwrites during PATCH.
+
+            # Only add the field to parsed_data if a valid value was found
+            if value > 0.0 or raw_val in ["0", "zero", "0.0"]:
+                parsed_data[field] = {"data": float(value), "is_read": True}
 
     print("DEBUG: Final parsed data =>", parsed_data)
     return parsed_data
@@ -901,10 +1247,13 @@ class NudgesViewVoice(APIView):
                 try:
                     data[field] = json.loads(value)
                 except (json.JSONDecodeError, TypeError):
+                    # Handle cases where value is a raw string/number that failed to load as JSON
                     try:
                         numeric_value = _to_number(value)
+
                         if field == "labour_estimation":
                             labour_struct = default_labour()
+                            # Use the converted number for cost, since count requires specific parsing
                             labour_struct["male_labour_cost"] = numeric_value
                             labour_struct["is_read"] = True
                             data[field] = labour_struct
@@ -917,7 +1266,6 @@ class NudgesViewVoice(APIView):
 
         serializer = NudgesVoiceSerializer(data=data, context={"request": request})
         if serializer.is_valid():
-            # 🟢 FIX: Called .save() and explicitly passed the foreign key objects.
             serializer.save(
                 user=request.user,
                 crop_plan_row=crop_plan_row  # Pass the model object
@@ -993,7 +1341,6 @@ class NudgesViewVoice(APIView):
 
         serializer = NudgesVoiceSerializer(nudges_obj, data=data, partial=True, context={"request": request})
         if serializer.is_valid():
-            # 🟢 FIX: .save() is correctly called for PATCH
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
