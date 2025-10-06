@@ -1051,6 +1051,9 @@ TRANSLITERATION_MAP = {
     "സെവൻ": "7",  # <--- NEW ENTRY TO FIX THE BUG
     # You may need to add:
     "സിക്സ്": "6", "എയിറ്റ്": "8", "നയൺ": "9", "ടെൻ": "10",
+    # Tamil
+    "ஒன்று": "1", "ரண்டு": "2", "மூன்று": "3", "நான்கு": "4", "ஐந்து": "5",
+    "ஆறு": "6", "ஏழு": "7", "எட்டு": "8", "ஒன்பது": "9", "பத்து": "10"
 }
 
 
@@ -1103,13 +1106,41 @@ def parse_cost_details_from_text(text: str) -> dict:
     value_capture = r"([\d]+(?:\.\d+)?|[^\s]+)"
 
     patterns = {
-        "male_labour_cost": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
-        "male_labour_count": r"(?:male|മെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*" + value_capture,
-        "female_labour_cost": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
-        "female_labour_count": r"(?:female|ഫീമെയിൽ)\s+(?:labou?r|ലേബർ|ലബര)\s+(?:count|കൗണ്ട്)\s*(?:is|:)?\s*" + value_capture,
-        "machine": r"(?:machine|മെഷീൻ)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
-        "input": r"(?:input|ഇൻപുട്ട്)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
-        "miscellaneous": r"(?:miscellaneous|മിസലേനിയസ്|misc)\s+(?:cost|കോസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
+        # ----------------------------------------------------------------------------------------------------
+        # LABOUR COST (male)
+        # EN: male, ML: മെയിൽ, TN: மேல்
+        # EN: labou?r, ML: ലേബർ, TN: லேபர்
+        # EN: cost, ML: കോസ്റ്റ്, TN: கோஸ்ட்
+        "male_labour_cost": r"(?:male|മെയിൽ|மேல்)\s+(?:labou?r|ലേബർ|லேபர்)\s+(?:cost|കോസ്റ്റ്|கோஸ்ட்)\s*(?:is|:)?\s*" + value_capture,
+
+        # LABOUR COUNT (male)
+        # EN: count, ML: കൗണ്ട്, TN: கவுண்ட்
+        "male_labour_count": r"(?:male|മെയിൽ|மேல்)\s+(?:labou?r|ലേബർ|லேபர்)\s+(?:count|കൗണ്ട്|கவுண்ட்)\s*(?:is|:)?\s*" + value_capture,
+
+        # ----------------------------------------------------------------------------------------------------
+        # LABOUR COST (female)
+        # EN: female, ML: ഫീമെയിൽ, TN: ஃபீமேல்
+        "female_labour_cost": r"(?:female|ഫീമെയിൽ|ஃபீமேல்)\s+(?:labou?r|ലേബർ|லேபர்)\s+(?:cost|കോസ്റ്റ്|கோஸ்ட்)\s*(?:is|:)?\s*" + value_capture,
+
+        # LABOUR COUNT (female)
+        "female_labour_count": r"(?:female|ഫീമെയിൽ|ஃபீமேல்)\s+(?:labou?r|ലേബർ|லேபர்)\s+(?:count|കൗണ്ട്|கவுண்ட்)\s*(?:is|:)?\s*" + value_capture,
+
+        # ----------------------------------------------------------------------------------------------------
+        # MACHINE
+        # EN: machine, ML: മെഷീൻ, TN: மிஷின்
+        "machine": r"(?:machine|മെഷീൻ|மிஷின்)\s+(?:cost|കോസ്റ്റ്|கோஸ்ட்)?\s*(?:is|:)?\s*" + value_capture,
+
+        # ----------------------------------------------------------------------------------------------------
+        # INPUT
+        # EN: input, ML: ഇൻപുട്ട്, TN: இன்புட்
+        "input": r"(?:input|ഇൻപുട്ട്|இன்புட்)\s+(?:cost|കോസ്റ്റ്|கோஸ்ட்)?\s*(?:is|:)?\s*" + value_capture,
+
+        # ----------------------------------------------------------------------------------------------------
+        # MISCELLANEOUS
+        # EN: miscellaneous|misc, ML: മിസലേനിയസ്, TN: மிசலேனியஸ்
+        "miscellaneous": r"(?:miscellaneous|മിസലേനിയസ്|misc|மிசலேനിയസ്)\s+(?:cost|കോസ്റ്റ്|கோസ്റ്റ്)?\s*(?:is|:)?\s*" + value_capture,
+
+        # ----------------------------------------------------------------------------------------------------
     }
 
     # --- Labour Estimation ---
@@ -1301,16 +1332,26 @@ class NudgesViewVoice(APIView):
             return Response({"error": "Invalid row_number or no matching crop plan rows found"}, status=400)
 
         try:
-            # Get the existing object
-            nudges_obj = Nudges.objects.get(crop_plan_row=crop_plan_row, user=request.user)
-        except Nudges.DoesNotExist:
-            return Response({"error": "Nudges object not found for this crop_plan_row"}, status=404)
+            # FIX: Use filter and order to retrieve the unique (latest) object
+            # This handles existing duplicate data in the database.
+            nudges_obj = Nudges.objects.filter(
+                crop_plan_row=crop_plan_row,
+                user=request.user
+            ).order_by('-id').first()  # Orders by most recent ID descending and takes the first one
+
+            if not nudges_obj:
+                return Response({"error": "Nudges object not found for this crop_plan_row"}, status=404)
+
+        except Exception as e:
+            # Catches unexpected DB errors
+            print(f"Database retrieval error: {e}")
+            return Response({"error": "Database error while retrieving Nudges object"}, status=500)
 
         # Start with request data, then update with extracted voice data
         data = request.data.dict()
         data.update(voice_data)
-        # IMPORTANT: Since `voice_data` only contains fields that were read,
-        # any missing fields will be preserved by `partial=True`.
+
+        # ... (JSON field handling code remains the same)
 
         json_fields = {
             "labour_estimation": default_labour,
