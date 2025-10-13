@@ -1507,7 +1507,7 @@ def parse_cost_details_from_text(text: str) -> dict:
                  r"(?:cost|കോസ്റ്റ്|വില|ചിലവ്|கோസ്റ്റ്)?\s*(?:is|ആണ്|:)?\s*" + value_capture,
 
         # ---------------- MISCELLANEOUS COST ----------------
-        "miscellaneous": r"(?:miscellaneous|misc|മിസലേനിയസ്|മറ്റുള്ള ചെലവ്|ബാക്കി ചെലവ്|അന്യ ചെലവ്|മറ്റുള്ളവ|മറ്റുള്ളവയുടെ|மிசலேനിയஸ்)\s*" \
+        "miscellaneous": r"(?:miscellaneous|misc|മിസ്ലേനിയസ് |മിസലേനിയസ്|മറ്റുള്ള ചെലവ്|ബാക്കി ചെലവ്|അന്യ ചെലവ്|മറ്റുള്ളവ|മറ്റുള്ളവയുടെ|மிசலேനിയஸ்)\s*" \
                          r"(?:cost|കോസ്റ്റ്|വില|ചിലവ്|கோസ്റ്റ്)?\s*(?:is|ആണ്|:)?\s*" + value_capture,
     }
 

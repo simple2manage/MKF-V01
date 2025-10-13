@@ -55,7 +55,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'nudges',
     "whatsapp_bot",
-    'masterdata'
+    'masterdata',
+    'nudgedetail'
    
 ]
 

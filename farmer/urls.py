@@ -28,7 +28,9 @@ urlpatterns = [
     path('nudges/', include('nudges.urls')),
     path('masterdata/', include('masterdata.urls')),
 
-    path('whatsapp/', include('whatsapp_bot.urls')),]
+    path('whatsapp/', include('whatsapp_bot.urls')),
+path('nudgedetail/', include('nudgedetail.urls'))
+]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
