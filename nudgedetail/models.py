@@ -46,6 +46,13 @@ class NudgesMachine(models.Model):
     crop = models.ForeignKey(
         'crops.Crop', on_delete=models.CASCADE, null=True, blank=True, related_name='nudges_machine_crops'
     )
+    name = models.ForeignKey(
+        'masterdata.MachineRegistration',  # adjust app name if different
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='nudges_machine_entries'
+    )
 
     machine_count = models.IntegerField(default=0)
     working_hours = models.FloatField(default=0.0)
@@ -73,6 +80,13 @@ class NudgesInput(models.Model):
     )
     crop = models.ForeignKey(
         'crops.Crop', on_delete=models.CASCADE, null=True, blank=True, related_name='nudges_input_crops'
+    )
+    name = models.ForeignKey(
+        'masterdata.InputMaster',  # adjust app name if different
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='nudges_input_entries'
     )
 
     input_quantity = models.FloatField(default=0.0)

@@ -322,6 +322,7 @@ class NudgesViewSupervisor(APIView):
 
 
 
+
 class TodayCropPlanActivityAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -371,6 +372,7 @@ class TodayCropPlanActivityAPIView(APIView):
             result.append(row_data)
 
         return Response(result, status=200)
+
 
 
 

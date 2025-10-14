@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Nudges
+from masterdata.models import *
 
 
 class NudgesSerializer(serializers.ModelSerializer):
@@ -20,7 +21,25 @@ class NudgesSerializer(serializers.ModelSerializer):
 from rest_framework import serializers
 from .models import NudgesMachine
 
+# class NudgesMachineSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = NudgesMachine
+#         fields = [
+#             'id',
+#             'user',
+#             'zone',
+#             'crop',
+#             'machine_count',
+#             'working_hours',
+#             'rate_per_hour',
+#             'total_machine_cost',
+#             'created_at',
+#         ]
+#         read_only_fields = ['total_machine_cost', 'created_at','user']
 class NudgesMachineSerializer(serializers.ModelSerializer):
+    # Optional: to show machine registration details
+    name_detail = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = NudgesMachine
         fields = [
@@ -28,27 +47,79 @@ class NudgesMachineSerializer(serializers.ModelSerializer):
             'user',
             'zone',
             'crop',
+            'name',              # ✅ Added
+            'name_detail',       # ✅ Optional read-only detail
             'machine_count',
             'working_hours',
             'rate_per_hour',
             'total_machine_cost',
             'created_at',
         ]
-        read_only_fields = ['total_machine_cost', 'created_at','user']
+        read_only_fields = ['total_machine_cost', 'created_at', 'user']
+
+    def get_name_detail(self, obj):
+        if obj.name:
+            return {
+                "machine_type": str(obj.name.name),  # MachineType object
+                "registration_number": obj.name.registration_number,
+            }
+        return None
+
 from rest_framework import serializers
 from .models import NudgesInput
+#
+# class NudgesInputSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = NudgesInput
+#         fields = [
+#             'id',
+#             'user',
+#             'zone',
+#             'crop',
+#             'input_quantity',
+#             'input_cost',
+#             'total_input_cost',
+#             'created_at'
+#         ]
+#         read_only_fields = ['total_input_cost', 'created_at', 'user']
+
+from rest_framework import serializers
+from .models import NudgesInput
+from masterdata.models import InputMaster  # make sure this import path is correct
 
 class NudgesInputSerializer(serializers.ModelSerializer):
+    name = serializers.PrimaryKeyRelatedField(
+        queryset=InputMaster.objects.all(), required=False, allow_null=True
+    )
+    name_detail = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = NudgesInput
         fields = [
-            'id',
-            'user',
-            'zone',
-            'crop',
-            'input_quantity',
-            'input_cost',
-            'total_input_cost',
-            'created_at'
+            'id', 'user', 'zone', 'crop', 'name', 'name_detail',
+            'input_quantity', 'input_cost', 'total_input_cost', 'created_at'
         ]
         read_only_fields = ['total_input_cost', 'created_at', 'user']
+
+    def get_name_detail(self, obj):
+        if obj.name:  # InputMaster instance
+            input_obj = obj.name.name  # This is Input instance
+            return {
+                "id": obj.name.id,
+                "input_name": input_obj.name if input_obj else None,
+                "unit": input_obj.get_unit_display() if input_obj else None,
+                "category": input_obj.category.name if input_obj and input_obj.category else None
+            }
+        return None
+
+    def to_representation(self, instance):
+        """Ensure all objects in output are JSON serializable."""
+        data = super().to_representation(instance)
+        # Make sure `name` is an ID, not a model object
+        if instance.name:
+            data['name'] = instance.name.id
+        return data
+
+
+
+
