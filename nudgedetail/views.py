@@ -752,3 +752,285 @@ class NudgesInputView(APIView):
         nudges_input = NudgesInput.objects.filter(user=request.user)
         serializer = NudgesInputSerializer(nudges_input, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+####################
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from .models import Phase, SubPhase, NudgesPhase
+from .serializer import PhaseSerializer, NudgesPhaseSerializer
+
+
+class PhaseListAPIView(APIView):
+    """
+    Returns list of all phases and their subphases
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        phases = Phase.objects.prefetch_related('subphases').all()
+        serializer = PhaseSerializer(phases, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+
+from .models import NudgesPhase, Phase, SubPhase
+from .serializer import NudgesPhaseSerializer
+from crops.models import CropPlanRow  # adjust import if your app layout differs
+
+
+class NudgesPhaseAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_crop_plan_row(self, user, zone_id, crop_id, row_number):
+        """Helper to safely get crop_plan_row by row_number (reuse from NudgesInputView)"""
+        try:
+            row_index = int(row_number) - 1
+        except (TypeError, ValueError):
+            return None, 'row_number must be an integer'
+
+        crop_plan_rows = CropPlanRow.objects.filter(
+            user_crop_plan__zone_id=zone_id,
+            user_crop_plan__crop_id=crop_id,
+            user_crop_plan__user=user
+        ).order_by('id')
+
+        if not crop_plan_rows.exists():
+            return None, 'No matching crop plan rows found'
+
+        if row_index < 0 or row_index >= crop_plan_rows.count():
+            return None, 'row_number out of range'
+
+        return crop_plan_rows[row_index], None
+
+    def get(self, request):
+        """
+        Retrieve one or all NudgesPhase records.
+        To get a specific record by row use ?row_number=X&zone=Y&crop=Z
+        """
+        row_number = request.query_params.get('row_number')
+        zone_id = request.query_params.get('zone')
+        crop_id = request.query_params.get('crop')
+
+        if row_number and zone_id and crop_id:
+            crop_plan_row, error = self._get_crop_plan_row(request.user, zone_id, crop_id, row_number)
+            if error:
+                return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                nudges_phase = NudgesPhase.objects.get(user=request.user, crop_plan_row=crop_plan_row)
+                serializer = NudgesPhaseSerializer(nudges_phase)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except NudgesPhase.DoesNotExist:
+                return Response({'error': 'NudgesPhase not found for this row_number'}, status=status.HTTP_404_NOT_FOUND)
+
+        # No filter -> return all for user
+        nudges_phases = NudgesPhase.objects.filter(user=request.user)
+        serializer = NudgesPhaseSerializer(nudges_phases, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """
+        Create a new NudgesPhase record by resolving crop_plan_row from row_number, zone, crop.
+        """
+        data = request.data.copy()
+        row_number = data.get('row_number')
+        zone_id = data.get('zone')
+        crop_id = data.get('crop')
+
+        if not (row_number and zone_id and crop_id):
+            return Response({'error': 'row_number, zone, and crop are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        crop_plan_row, error = self._get_crop_plan_row(request.user, zone_id, crop_id, row_number)
+        if error:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Prevent duplicates for the same crop_plan_row + user
+        if NudgesPhase.objects.filter(user=request.user, crop_plan_row=crop_plan_row).exists():
+            return Response({'error': 'NudgesPhase already exists for this row_number'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ensure serializer doesn't require 'row_number' field (we'll pass crop_plan_row)
+        serializer = NudgesPhaseSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(user=request.user, crop_plan_row=crop_plan_row)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request):
+        """
+        Partially update an existing NudgesPhase record by resolving crop_plan_row.
+        """
+        data = request.data.copy()
+        row_number = data.get('row_number')
+        zone_id = data.get('zone')
+        crop_id = data.get('crop')
+
+        if not (row_number and zone_id and crop_id):
+            return Response({'error': 'row_number, zone, and crop are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        crop_plan_row, error = self._get_crop_plan_row(request.user, zone_id, crop_id, row_number)
+        if error:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            nudges_phase = NudgesPhase.objects.get(user=request.user, crop_plan_row=crop_plan_row)
+        except NudgesPhase.DoesNotExist:
+            return Response({'error': 'NudgesPhase not found for this row_number'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = NudgesPhaseSerializer(nudges_phase, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+######
+# class NudgesPhaseSummaryAPIView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
+#
+#     def get(self, request):
+#         """
+#         Get all Nudges, Machines, and Inputs for a given zone and phase.
+#         Example:
+#         GET /nudgedetail/nudges-phase-summary/?zone=1&phase=3
+#         """
+#         zone_id = request.query_params.get("zone")
+#         phase_id = request.query_params.get("phase")
+#
+#         if not zone_id or not phase_id:
+#             return Response(
+#                 {"error": "Both 'zone' and 'phase' parameters are required."},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+#
+#         # Step 1: Find all crop_plan_rows under this zone + phase
+#         crop_plan_rows = NudgesPhase.objects.filter(
+#             zone_id=zone_id, phase_id=phase_id, user=request.user
+#         ).values_list("crop_plan_row_id", flat=True)
+#
+#         if not crop_plan_rows:
+#             return Response(
+#                 {"message": "No records found for the given zone and phase."},
+#                 status=status.HTTP_404_NOT_FOUND,
+#             )
+#
+#         # Step 2: Fetch all related Nudges, Machines, and Inputs
+#         nudges = Nudges.objects.filter(
+#             user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
+#         )
+#         machines = NudgesMachine.objects.filter(
+#             user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
+#         )
+#         inputs = NudgesInput.objects.filter(
+#             user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
+#         )
+#
+#         # Step 3: Serialize them
+#         nudges_data = NudgesSerializer(nudges, many=True).data
+#         machines_data = NudgesMachineSerializer(machines, many=True).data
+#         inputs_data = NudgesInputSerializer(inputs, many=True).data
+#
+#         # Step 4: Return combined response
+#         return Response(
+#             {
+#                 "zone": zone_id,
+#                 "phase": phase_id,
+#                 "nudges": nudges_data,
+#                 "machines": machines_data,
+#                 "inputs": inputs_data,
+#             },
+#             status=status.HTTP_200_OK,
+#         )
+
+class NudgesPhaseSummaryAPIView(APIView):
+    """
+    Get all Nudges, Machines, and Inputs for a given zone, phase,
+    and optionally a specific row_number.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_crop_plan_row(self, user, zone_id, crop_id, row_number):
+        """Helper method to get CropPlanRow by row_number"""
+        try:
+            row_index = int(row_number) - 1
+        except ValueError:
+            return None, 'row_number must be an integer'
+
+        crop_plan_rows = CropPlanRow.objects.filter(
+            user_crop_plan__zone_id=zone_id,
+            user_crop_plan__crop_id=crop_id,
+            user_crop_plan__user=user
+        ).order_by('id')
+
+        if not crop_plan_rows.exists():
+            return None, 'No matching crop plan rows found'
+
+        if row_index < 0 or row_index >= crop_plan_rows.count():
+            return None, 'row_number out of range'
+
+        return crop_plan_rows[row_index], None
+
+    def get(self, request):
+        zone_id = request.query_params.get("zone")
+        phase_id = request.query_params.get("phase")
+        row_number = request.query_params.get("row_number")
+        crop_id = request.query_params.get("crop")
+
+        if not zone_id or not phase_id:
+            return Response(
+                {"error": "Both 'zone' and 'phase' parameters are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Base queryset of NudgesPhase
+        nudges_phase_qs = NudgesPhase.objects.filter(
+            user=request.user,
+            zone_id=zone_id,
+            phase_id=phase_id,
+        )
+
+        if not nudges_phase_qs.exists():
+            return Response(
+                {"message": "No records found for the given zone and phase."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # If row_number provided → narrow down to that row
+        if row_number and crop_id:
+            crop_plan_row, error = self._get_crop_plan_row(request.user, zone_id, crop_id, row_number)
+            if error:
+                return Response({'error': error}, status=400)
+
+            nudges_phase_qs = nudges_phase_qs.filter(crop_plan_row=crop_plan_row)
+            crop_plan_rows = [crop_plan_row.id]
+        else:
+            crop_plan_rows = list(nudges_phase_qs.values_list('crop_plan_row_id', flat=True))
+
+        # Fetch related entries
+        nudges = Nudges.objects.filter(
+            user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
+        )
+        machines = NudgesMachine.objects.filter(
+            user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
+        )
+        inputs = NudgesInput.objects.filter(
+            user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
+        )
+
+        # Serialize
+        nudges_data = NudgesSerializer(nudges, many=True).data
+        machines_data = NudgesMachineSerializer(machines, many=True).data
+        inputs_data = NudgesInputSerializer(inputs, many=True).data
+
+        return Response(
+            {
+                "zone": zone_id,
+                "phase": phase_id,
+                "row_number": row_number if row_number else "all",
+                "nudges": nudges_data,
+                "machines": machines_data,
+                "inputs": inputs_data,
+            },
+            status=status.HTTP_200_OK,
+        )

@@ -15,3 +15,7 @@ class NudgesMachineAdmin(admin.ModelAdmin):
     search_fields = ["crop_plan_row__stage", "user__username"]
 
 admin.site.register(NudgesInput)
+admin.site.register(Phase)
+admin.site.register(SubPhase)
+
+admin.site.register(NudgesPhase)

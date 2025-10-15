@@ -122,4 +122,40 @@ class NudgesInputSerializer(serializers.ModelSerializer):
 
 
 
+##############
+from rest_framework import serializers
+from .models import Phase, SubPhase, NudgesPhase
+
+
+class SubPhaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubPhase
+        fields = ['id', 'name', 'phase']
+
+
+class PhaseSerializer(serializers.ModelSerializer):
+    subphases = SubPhaseSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Phase
+        fields = ['id', 'name', 'subphases']
+
+
+class NudgesPhaseSerializer(serializers.ModelSerializer):
+    phase_name = serializers.CharField(source='phase.name', read_only=True)
+    subphase_name = serializers.CharField(source='subphase.name', read_only=True)
+
+    class Meta:
+        model = NudgesPhase
+        fields = [
+            'id',
+
+            'zone',
+            'crop',
+            'phase',
+            'phase_name',
+            'subphase',
+            'subphase_name',
+            'created_at'
+        ]
 

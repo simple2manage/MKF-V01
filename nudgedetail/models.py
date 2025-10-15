@@ -2,6 +2,7 @@ from django.db import models
 from accounts.models import CustomUser
 from crops.models import *
 
+
 class Nudges(models.Model):
     user = models.ForeignKey(
         CustomUser, on_delete=models.CASCADE, related_name='nudges_labour_details'
@@ -29,8 +30,7 @@ class Nudges(models.Model):
 
 
 
-from django.db import models
-from accounts.models import CustomUser
+
 
 
 class NudgesMachine(models.Model):
@@ -102,3 +102,55 @@ class NudgesInput(models.Model):
 
     def __str__(self):
         return f"Input Estimation for {self.crop_plan_row.stage} on {self.crop_plan_row.date}"
+
+
+#####################
+from django.db import models
+from accounts.models import CustomUser  # adjust if needed
+
+
+class Phase(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
+class SubPhase(models.Model):
+    phase = models.ForeignKey(
+        Phase, on_delete=models.CASCADE, related_name='subphases'
+    )
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        unique_together = ('phase', 'name')
+
+    def __str__(self):
+        return f"{self.phase.name} - {self.name}"
+
+
+class NudgesPhase(models.Model):
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name='nudges_phase_details'
+    )
+    crop_plan_row = models.ForeignKey(
+        'crops.CropPlanRow', on_delete=models.CASCADE, related_name='nudges_phase_estimations'
+    )
+    zone = models.ForeignKey(
+        'farmzone.Zone', on_delete=models.CASCADE, null=True, blank=True, related_name='nudges_phase_zones'
+    )
+    crop = models.ForeignKey(
+        'crops.Crop', on_delete=models.CASCADE, null=True, blank=True, related_name='nudges_phase_crops'
+    )
+    phase = models.ForeignKey(
+        Phase, on_delete=models.CASCADE, related_name='nudges_phases'
+    )
+    subphase = models.ForeignKey(
+        SubPhase, on_delete=models.CASCADE, null=True, blank=True, related_name='nudges_subphases'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        subphase_name = self.subphase.name if self.subphase else "No Subphase"
+        return f"{self.phase.name} ({subphase_name}) - {self.user.phone_number}"
