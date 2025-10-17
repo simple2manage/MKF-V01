@@ -40,15 +40,7 @@ class CropAPIView(APIView):
         return Response(serializer.data)
 
 
-    # def get(self, request):
-    #     crop_id = request.query_params.get('crop_id', None)
-    #     if crop_id:
-    #         crop_ids = [int(cid) for cid in crop_id.split(',') if cid.isdigit()]
-    #         crops = Crop.objects.filter(id__in=crop_ids)
-    #     else:
-    #         crops = Crop.objects.all()
-    #     serializer = CropSerializer(crops, many=True)
-    #     return Response(serializer.data)
+
     def post(self, request):
         serializer = CropSerializer(data=request.data)
         if serializer.is_valid():
@@ -74,18 +66,6 @@ class ZoneCropAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-    # def get(self, request):
-    #     zone_id = request.query_params.get('zone_id')
-    #
-    #     if not zone_id:
-    #         return Response({"error": "zone_id parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
-    #
-    #     crops = Crop.objects.filter(
-    #         id__in=UserCropPlan.objects.filter(zone_id=zone_id).values_list('crop_id', flat=True)
-    #     ).distinct()
-    #
-    #     serializer = CropSerializer(crops, many=True)
-    #     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
@@ -114,7 +94,7 @@ class UserCropPlanAPIView(APIView):
                 df.columns = [col.strip().lower() for col in df.columns]
 
                 for _, row in df.iterrows():
-                    # ✅ Extract day number from 'Day 1', 'day-12', etc.
+
                     day_value = row.get('day')
                     if isinstance(day_value, str):
                         match = re.search(r'\d+', day_value)
@@ -122,7 +102,7 @@ class UserCropPlanAPIView(APIView):
                     else:
                         day_number = int(day_value) if pd.notna(day_value) else 0
 
-                    # ✅ Create CropPlanRow
+
                     CropPlanRow.objects.create(
                         user_crop_plan=user_crop_plan,
                         date=row.get('date') or user_crop_plan.start_date,
@@ -224,48 +204,6 @@ class CropPlanRowFlexibleUpdateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# class CropPlanRowFlexibleUpdateView(APIView):
-#     permission_classes = [permissions.IsAuthenticated]
-#
-#     def patch(self, request, *args, **kwargs):
-#         user_crop_plan_id = request.query_params.get('user_crop_plan_id')
-#         row_id = request.query_params.get('row_id')
-#         date = request.query_params.get('date')
-#         day = request.query_params.get('day')
-#
-#         if not user_crop_plan_id:
-#             return Response({"error": "user_crop_plan_id is required."}, status=status.HTTP_400_BAD_REQUEST)
-#
-#         row = None
-#
-#         try:
-#             if row_id:
-#                 row = CropPlanRow.objects.get(
-#                     id=row_id,
-#                     user_crop_plan__id=user_crop_plan_id
-#                 )
-#             elif date:
-#                 row = CropPlanRow.objects.get(
-#                     date=date,
-#                     user_crop_plan__id=user_crop_plan_id
-#                 )
-#             elif day:
-#                 row = CropPlanRow.objects.get(
-#                     day=day,
-#                     user_crop_plan__id=user_crop_plan_id
-#                 )
-#             else:
-#                 return Response({"error": "Provide either row_id, date, or day."}, status=status.HTTP_400_BAD_REQUEST)
-#
-#         except CropPlanRow.DoesNotExist:
-#             return Response({"error": "CropPlanRow not found."}, status=status.HTTP_404_NOT_FOUND)
-#
-#         # Update the row
-#         serializer = CropPlanRowSerializer(row, data=request.data, partial=True)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

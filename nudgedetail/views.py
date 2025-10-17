@@ -1,17 +1,48 @@
 import re, json
-from rest_framework.views import APIView
+
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.permissions import IsAuthenticated
+
+
 from .models import Nudges
 from .serializer import *
 from crops.models import CropPlanRow
 
 from .utils import transcribe_audio_with_sarvam  # your audio transcription util
-import re
-from .utils import transcribe_audio_with_sarvam
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Nudges
+from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from .models import Phase, SubPhase, NudgesPhase
+from .serializer import PhaseSerializer, NudgesPhaseSerializer
 
+from rest_framework.views import APIView
+
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.permissions import IsAuthenticated
+from .models import NudgesMachine
+from .serializer import NudgesMachineSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.permissions import IsAuthenticated
+from .models import NudgesInput
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+
+from .models import NudgesPhase, Phase, SubPhase
+from .serializer import NudgesPhaseSerializer
+from crops.models import CropPlanRow  # adjust import if your app layout differs
+
+
+
+#################Labour voice#######################
 def default_labour_details():
     return {
         "male_labour_cost": 0.0,
@@ -145,17 +176,8 @@ class NudgesLaborVoiceView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-##############################################
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.permissions import IsAuthenticated
-from .models import NudgesMachine
-from .serializer import NudgesMachineSerializer
-from crops.models import CropPlanRow
-from .utils import transcribe_audio_with_sarvam
-import re
+#################Machine voice#############################
+
 
 def default_machine_details():
     return {
@@ -286,19 +308,10 @@ class NudgesMachineVoiceView(APIView):
         else:
             print("DEBUG: Serializer errors =>", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-###############
+########Input Voice#######
 
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.permissions import IsAuthenticated
-from .models import NudgesInput
-from .serializer import NudgesInputSerializer
-from crops.models import CropPlanRow
-from .utils import transcribe_audio_with_sarvam
-import re
+
 
 # Default values
 def default_input_details():
@@ -429,12 +442,8 @@ class NudgesInputVoiceView(APIView):
 
 
 
-################################
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Nudges
-from django.shortcuts import get_object_or_404
+#############labour text###################
+
 class NudgesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -753,11 +762,7 @@ class NudgesInputView(APIView):
         serializer = NudgesInputSerializer(nudges_input, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 ####################
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from .models import Phase, SubPhase, NudgesPhase
-from .serializer import PhaseSerializer, NudgesPhaseSerializer
+
 
 
 class PhaseListAPIView(APIView):
@@ -772,15 +777,7 @@ class PhaseListAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-
-from .models import NudgesPhase, Phase, SubPhase
-from .serializer import NudgesPhaseSerializer
-from crops.models import CropPlanRow  # adjust import if your app layout differs
-
-
+#################phase########################
 class NudgesPhaseAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -819,12 +816,9 @@ class NudgesPhaseAPIView(APIView):
             if error:
                 return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
 
-            try:
-                nudges_phase = NudgesPhase.objects.get(user=request.user, crop_plan_row=crop_plan_row)
-                serializer = NudgesPhaseSerializer(nudges_phase)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            except NudgesPhase.DoesNotExist:
-                return Response({'error': 'NudgesPhase not found for this row_number'}, status=status.HTTP_404_NOT_FOUND)
+            nudges_phases = NudgesPhase.objects.filter(user=request.user, crop_plan_row=crop_plan_row)
+            serializer = NudgesPhaseSerializer(nudges_phases, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         # No filter -> return all for user
         nudges_phases = NudgesPhase.objects.filter(user=request.user)
@@ -834,6 +828,7 @@ class NudgesPhaseAPIView(APIView):
     def post(self, request):
         """
         Create a new NudgesPhase record by resolving crop_plan_row from row_number, zone, crop.
+        Allows multiple phases for the same row.
         """
         data = request.data.copy()
         row_number = data.get('row_number')
@@ -847,11 +842,6 @@ class NudgesPhaseAPIView(APIView):
         if error:
             return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Prevent duplicates for the same crop_plan_row + user
-        if NudgesPhase.objects.filter(user=request.user, crop_plan_row=crop_plan_row).exists():
-            return Response({'error': 'NudgesPhase already exists for this row_number'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Ensure serializer doesn't require 'row_number' field (we'll pass crop_plan_row)
         serializer = NudgesPhaseSerializer(data=data)
         if serializer.is_valid():
             serializer.save(user=request.user, crop_plan_row=crop_plan_row)
@@ -885,63 +875,7 @@ class NudgesPhaseAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-######
-# class NudgesPhaseSummaryAPIView(APIView):
-#     permission_classes = [permissions.IsAuthenticated]
-#
-#     def get(self, request):
-#         """
-#         Get all Nudges, Machines, and Inputs for a given zone and phase.
-#         Example:
-#         GET /nudgedetail/nudges-phase-summary/?zone=1&phase=3
-#         """
-#         zone_id = request.query_params.get("zone")
-#         phase_id = request.query_params.get("phase")
-#
-#         if not zone_id or not phase_id:
-#             return Response(
-#                 {"error": "Both 'zone' and 'phase' parameters are required."},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-#
-#         # Step 1: Find all crop_plan_rows under this zone + phase
-#         crop_plan_rows = NudgesPhase.objects.filter(
-#             zone_id=zone_id, phase_id=phase_id, user=request.user
-#         ).values_list("crop_plan_row_id", flat=True)
-#
-#         if not crop_plan_rows:
-#             return Response(
-#                 {"message": "No records found for the given zone and phase."},
-#                 status=status.HTTP_404_NOT_FOUND,
-#             )
-#
-#         # Step 2: Fetch all related Nudges, Machines, and Inputs
-#         nudges = Nudges.objects.filter(
-#             user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
-#         )
-#         machines = NudgesMachine.objects.filter(
-#             user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
-#         )
-#         inputs = NudgesInput.objects.filter(
-#             user=request.user, zone_id=zone_id, crop_plan_row_id__in=crop_plan_rows
-#         )
-#
-#         # Step 3: Serialize them
-#         nudges_data = NudgesSerializer(nudges, many=True).data
-#         machines_data = NudgesMachineSerializer(machines, many=True).data
-#         inputs_data = NudgesInputSerializer(inputs, many=True).data
-#
-#         # Step 4: Return combined response
-#         return Response(
-#             {
-#                 "zone": zone_id,
-#                 "phase": phase_id,
-#                 "nudges": nudges_data,
-#                 "machines": machines_data,
-#                 "inputs": inputs_data,
-#             },
-#             status=status.HTTP_200_OK,
-#         )
+
 
 class NudgesPhaseSummaryAPIView(APIView):
     """

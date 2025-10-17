@@ -9,12 +9,7 @@ def reset_cropplanrow_id():
 
 
 
-# def get_icon_for_stage(stage_name):
-#     try:
-#         nudge_image = NudgeStageImage.objects.get(stage__iexact=stage_name)
-#         return nudge_image.icon.url
-#     except NudgeStageImage.DoesNotExist:
-#         return settings.DEFAULT_NUDGE_ICON_URL
+
 
 
 def get_icon_for_stage(stage_name, request=None):

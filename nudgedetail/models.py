@@ -2,6 +2,9 @@ from django.db import models
 from accounts.models import CustomUser
 from crops.models import *
 
+from django.db import models
+
+
 
 class Nudges(models.Model):
     user = models.ForeignKey(
@@ -104,9 +107,7 @@ class NudgesInput(models.Model):
         return f"Input Estimation for {self.crop_plan_row.stage} on {self.crop_plan_row.date}"
 
 
-#####################
-from django.db import models
-from accounts.models import CustomUser  # adjust if needed
+
 
 
 class Phase(models.Model):

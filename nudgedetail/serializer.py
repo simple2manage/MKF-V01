@@ -2,6 +2,13 @@ from rest_framework import serializers
 from .models import Nudges
 from masterdata.models import *
 
+from .models import NudgesMachine
+
+from .models import NudgesInput
+
+
+
+from .models import Phase, SubPhase, NudgesPhase
 
 class NudgesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -18,24 +25,9 @@ class NudgesSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = ['id', 'created_at','user']
-from rest_framework import serializers
-from .models import NudgesMachine
 
-# class NudgesMachineSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = NudgesMachine
-#         fields = [
-#             'id',
-#             'user',
-#             'zone',
-#             'crop',
-#             'machine_count',
-#             'working_hours',
-#             'rate_per_hour',
-#             'total_machine_cost',
-#             'created_at',
-#         ]
-#         read_only_fields = ['total_machine_cost', 'created_at','user']
+
+
 class NudgesMachineSerializer(serializers.ModelSerializer):
     # Optional: to show machine registration details
     name_detail = serializers.SerializerMethodField(read_only=True)
@@ -65,27 +57,9 @@ class NudgesMachineSerializer(serializers.ModelSerializer):
             }
         return None
 
-from rest_framework import serializers
-from .models import NudgesInput
-#
-# class NudgesInputSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = NudgesInput
-#         fields = [
-#             'id',
-#             'user',
-#             'zone',
-#             'crop',
-#             'input_quantity',
-#             'input_cost',
-#             'total_input_cost',
-#             'created_at'
-#         ]
-#         read_only_fields = ['total_input_cost', 'created_at', 'user']
 
-from rest_framework import serializers
-from .models import NudgesInput
-from masterdata.models import InputMaster  # make sure this import path is correct
+
+
 
 class NudgesInputSerializer(serializers.ModelSerializer):
     name = serializers.PrimaryKeyRelatedField(
@@ -122,9 +96,6 @@ class NudgesInputSerializer(serializers.ModelSerializer):
 
 
 
-##############
-from rest_framework import serializers
-from .models import Phase, SubPhase, NudgesPhase
 
 
 class SubPhaseSerializer(serializers.ModelSerializer):
