@@ -764,18 +764,41 @@ class NudgesInputView(APIView):
 ####################
 
 
+#
+# class PhaseListAPIView(APIView):
+#     """
+#     Returns list of all phases and their subphases
+#     """
+#     permission_classes = [permissions.AllowAny]
+#
+#     def get(self, request):
+#         phases = Phase.objects.prefetch_related('subphases').all()
+#         serializer = PhaseSerializer(phases, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class PhaseListAPIView(APIView):
     """
-    Returns list of all phases and their subphases
+    Returns list of all phases and their subphases.
+    If ?phase=<id> is provided, returns only that phase and its subphases.
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        phase_id = request.query_params.get('phase')
+
+        if phase_id:
+            try:
+                phase = Phase.objects.prefetch_related('subphases').get(id=phase_id)
+            except Phase.DoesNotExist:
+                return Response({'error': 'Phase not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = PhaseSerializer(phase)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # If no param, return all
         phases = Phase.objects.prefetch_related('subphases').all()
         serializer = PhaseSerializer(phases, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 #################phase########################
 class NudgesPhaseAPIView(APIView):
